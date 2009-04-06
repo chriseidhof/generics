@@ -64,11 +64,6 @@ data View a = View {toView :: a -> X.Html}
 
 instance Labeled View where
   lconstant    = View (X.toHtml . show)
-  lint         = lconstant
-  linteger     = lconstant
-  lfloat       = lconstant
-  ldouble      = lconstant
-  lchar        = lconstant
   lunit        = View (const X.noHtml)
   lprod ra rb  = View $ \(a,b) -> toView ra a +++ X.br +++ toView rb b
   lfield l r   = View $ \v -> (X.label << (capitalize l ++ ": ")) +++ toView r v
@@ -80,4 +75,3 @@ instance Rep View String where
 
 capitalize "" = ""
 capitalize (c:cs) = toUpper c : cs
-
