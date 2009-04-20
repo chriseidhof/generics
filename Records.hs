@@ -75,3 +75,5 @@ instance Rep View String where
 
 capitalize "" = ""
 capitalize (c:cs) = toUpper c : cs
+
+-- TODO: Public or Private wrapper-types that work on user-input
