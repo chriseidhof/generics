@@ -7,7 +7,6 @@ import Control.Applicative
 import Control.Monad.State
 import Database.HDBC
 import Records
-import Relations
 
 instance Applicative (State s) where
   pure = return
@@ -39,6 +38,3 @@ parse = evalState (toParse rep)
 maybeRead :: Read a => SqlValue -> Maybe a
 maybeRead SqlNull = Nothing
 maybeRead x       = (Just . read . fromSql) x
-
-instance Rep Parse (BelongsTo a) where
-  rep = Parse $ Just <$> ((maybe BTNotFetched BTId . maybeRead) <$> getOne) -- Can this be done easier?

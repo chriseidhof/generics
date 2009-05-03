@@ -4,7 +4,6 @@
 module ModelName where
 
 import Records
-import Relations
 
 data ModelName a = ModelName {toModelName :: a -> String}
 instance Labeled ModelName where
@@ -14,8 +13,6 @@ instance Labeled ModelName where
   lcon   l r   = ModelName $ \_ -> l
   ltype ep r   = ModelName $ \x -> toModelName r (from ep x)
 
-instance Rep ModelName (BelongsTo a) where
-  rep = err
 
 instance Rep ModelName String where
   rep = err

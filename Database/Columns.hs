@@ -4,7 +4,6 @@
 module Database.Columns where
 
 import Records
-import Relations
 
 data Columns a = Columns {toColumns :: a -> String -> [String]}
 instance Labeled Columns where
@@ -14,8 +13,6 @@ instance Labeled Columns where
   lcon   l r   = Columns $ \x l -> toColumns r x l
   ltype ep r   = Columns $ \x l -> toColumns r (from ep x) l
 
-instance Rep Columns (BelongsTo a) where
-  rep = Columns $ \_ l -> [l ++ "_id"]
 
 instance Rep Columns String where
   rep = keep

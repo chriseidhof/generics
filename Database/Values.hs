@@ -4,7 +4,6 @@
 module Database.Values where
 
 import Records
-import Relations
 import Database.HDBC
 
 data Values a = Values {toValues :: a -> [SqlValue]}
@@ -14,9 +13,6 @@ instance Labeled Values where
   lfield l r   = Values $ \x -> toValues r x
   lcon   l r   = Values $ \x -> toValues r x
   ltype ep r   = Values $ \x -> toValues r (from ep x)
-
-instance Rep Values (BelongsTo a) where
-  rep = ignore
 
 instance Rep Values String where
   rep = Values $ \x -> [toSql x]
