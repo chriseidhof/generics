@@ -12,13 +12,9 @@ import qualified Database.Columns as C
 import Database.Values
 import Database.Parse
 import Control.Applicative
-import Database.HDBC.Sqlite3 (Connection)
 
 data BelongsTo a = BTNotFetched | BTId Int | BTFetched (Int, a)
  deriving Show
-
-data Type a = Type
-type DB a = IO a
 
 instance Rep Parse (BelongsTo a) where
   rep = Parse $ Just <$> ((maybe BTNotFetched BTId . maybeRead) <$> getOne) -- Can this be done easier?
@@ -34,16 +30,15 @@ data RBelongsTo a b = RBT { btField  :: a -> BelongsTo b
 
 fillBelongsTo :: ( Rep Parse c, Rep C.Columns c
                  , Rep ModelName c, Show c
-                 ) => Connection 
-                   -> m 
+                 ) => m 
                    -> (RBelongsTo m c)
-                   -> IO m
-fillBelongsTo conn u bt = case btField bt u of
-                            BTNotFetched    -> error "fillBelongsTo"
-                            BTId x          -> do value <- find conn (fromBelongsTo $ btField bt u) x
-                                                  let value' = fromMaybe' "fillBelongsTo" value
-                                                  return $ btUpdate bt u $ BTFetched (x, value')
-                            x@(BTFetched _) -> return $ btUpdate bt u x
+                   -> DB m
+fillBelongsTo u bt = case btField bt u of
+                       BTNotFetched    -> error "fillBelongsTo"
+                       BTId x          -> do value <- find (fromBelongsTo $ btField bt u) x
+                                             let value' = fromMaybe' "fillBelongsTo" value
+                                             return $ btUpdate bt u $ BTFetched (x, value')
+                       x@(BTFetched _) -> return $ btUpdate bt u x
  where fromBelongsTo (BTFetched (x,y)) = y
        fromBelongsTo _                 = error "fromBelongsTo"
 

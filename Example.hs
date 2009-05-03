@@ -14,8 +14,9 @@ import Database.HDBC.Sqlite3 (Connection, connectSqlite3)
 
 test = do
   conn <- connectSqlite3 "example.sqlite3"
-  user <- find conn (undefined :: User) 1
-  fillBelongsTo conn (fromMaybe' "" user) relPost
+  runDB conn $ do
+    user <- find (undefined :: User) 1
+    fillBelongsTo (fromMaybe' "" user) relPost
 -- User datatype
 
 data User = User {name :: String, password :: String, age :: Int, post :: BelongsTo Post}
