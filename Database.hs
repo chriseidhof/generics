@@ -11,7 +11,7 @@ import Database.HDBC
 import ModelName
 import Data.Char (toLower)
 import Data.List (intercalate)
-import Database.HDBC.Sqlite3 (Connection, connectSqlite3 {- DEBUGGING -})
+import Database.HDBC.Sqlite3 (Connection)
 import Control.Monad.State
 
 type DB a = StateT Connection IO a
