@@ -12,10 +12,31 @@ import ModelName
 import Relations
 import Data.Char (toLower)
 import Data.List (intercalate)
-import Database.HDBC.Sqlite3 (Connection)
+import Database.HDBC.Sqlite3 (Connection, connectSqlite3 {- DEBUGGING -})
 
-fillBelongsTo :: (RBelongsTo m c) => Connection -> m -> IO m
-fillBelongsTo c u = 
+test = do
+  conn <- connectSqlite3 "example.sqlite3"
+  user <- find conn (undefined :: User) 1
+  fillBelongsTo conn (fromMaybe' "" user) relPost
+
+
+fillBelongsTo :: ( Rep Parse c, Rep Columns c
+                 , Rep ModelName c, Show c
+                 ) => Connection 
+                   -> m 
+                   -> (RBelongsTo m c)
+                   -> IO m
+fillBelongsTo conn u bt = case btField bt u of
+                            BTNotFetched    -> error "fillBelongsTo"
+                            BTId x          -> do value <- find conn (fromBelongsTo $ btField bt u) x
+                                                  let value' = fromMaybe' "fillBelongsTo" value
+                                                  return $ btUpdate bt u $ BTFetched (x, value')
+                            x@(BTFetched _) -> return $ btUpdate bt u x
+ where fromBelongsTo (BTFetched (x,y)) = y
+       fromBelongsTo _                 = error "fromBelongsTo"
+
+fromMaybe' e (Just x) = x
+fromMabye' e _        = error e
 
 new :: (Rep Values a, Rep Columns a, Rep ModelName a) => Connection -> a -> IO Int
 new conn x = let v = values x
