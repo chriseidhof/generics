@@ -14,7 +14,7 @@ instance Applicative (State s) where
 
 data Parse a = Parse {toParse :: State [SqlValue] (Maybe a)}
 instance Labeled Parse where
-  lconstant    = Parse $ maybeRead <$> getOne
+  lconstant    = parseUsingRead
   lprod ra rb  = Parse $ do l <- toParse ra 
                             r <- toParse rb
                             return $ (,) <$> l <*> r
@@ -26,15 +26,21 @@ instance Rep Parse String where
   rep = Parse $ fromSql <$> getOne
 
 getOne :: State [SqlValue] SqlValue
-getOne = do x <- gets head
+getOne = do x <- gets $ head' ("Database doesn't match defined schema.")
             modify tail
             return x
 
 parse :: (Rep Parse a) => [SqlValue] -> Maybe a
 parse = evalState (toParse rep)
 
+parseUsingRead :: (Read a) => Parse a
+parseUsingRead = Parse $ maybeRead <$> getOne
+
 
 -- TODO: refactor
 maybeRead :: Read a => SqlValue -> Maybe a
 maybeRead SqlNull = Nothing
 maybeRead x       = (Just . read . fromSql) x
+
+head' _ (x:xs) = x
+head' e _      = error e
