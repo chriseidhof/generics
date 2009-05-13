@@ -1,9 +1,9 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-module Database.Values where
+module Generics.Records.Database.Values where
 
-import Records
+import Generics.Records
 import Database.HDBC
 
 data Values a = Values {toValues :: a -> [SqlValue]}

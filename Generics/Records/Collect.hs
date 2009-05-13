@@ -5,12 +5,12 @@
 {-# LANGUAGE OverlappingInstances       #-}
 
 
-module Collect (
+module Generics.Records.Collect (
   Collect(..),
   collect,
 ) where
 
-import Records
+import Generics.Records
 
 -----------------------------------------------------------------------------
 -- Types

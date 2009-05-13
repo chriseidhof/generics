@@ -1,14 +1,13 @@
 {-# LANGUAGE FlexibleContexts #-}
-module Database where
+module Generics.Records.Database where
 
 import Control.Applicative
-import Collect
-import Records
-import Database.Columns
-import Database.Values
-import Database.Parse
+import Generics.Records
+import Generics.Records.Database.Columns
+import Generics.Records.Database.Values
+import Generics.Records.Database.Parse
 import Database.HDBC
-import ModelName
+import Generics.Records.ModelName
 import Data.Char (toLower)
 import Data.List (intercalate)
 import Database.HDBC.Sqlite3 (Connection)

@@ -2,6 +2,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE UndecidableInstances #-}
-module Relations (module Relations.BelongsTo) where
+module Generics.Records.Relations (module Generics.Records.Relations.BelongsTo) where
 
-import Relations.BelongsTo
+import Generics.Records.Relations.BelongsTo

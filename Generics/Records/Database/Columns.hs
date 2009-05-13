@@ -1,9 +1,9 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-module Database.Columns where
+module Generics.Records.Database.Columns where
 
-import Records
+import Generics.Records
 
 data Columns a = Columns {toColumns :: a -> String -> [String]}
 instance Labeled Columns where

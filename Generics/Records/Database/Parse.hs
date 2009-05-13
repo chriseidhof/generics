@@ -1,12 +1,12 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-module Database.Parse where
+module Generics.Records.Database.Parse where
 
 import Control.Applicative
 import Control.Monad.State
 import Database.HDBC
-import Records
+import Generics.Records
 
 instance Applicative (State s) where
   pure = return

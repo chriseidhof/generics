@@ -1,40 +1,13 @@
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE GADTs #-}
-module Records where
+module Generics.Records.Views where
 
 import Data.Char (toUpper)
 import Text.XHtml.Strict ((+++), (<<))
 import qualified Text.XHtml.Strict as X
 
-class Rep g a where
-  rep :: g a
-
-data EP d r = EP {from :: d -> r, to :: r -> d}
-
-class Labeled g where
-  lconstant :: (Enum a, Eq a, Ord a, Read a, Show a) => g a
-  lint      :: g Int
-  lint      = lconstant
-  linteger  :: g Integer
-  linteger  = lconstant
-  lfloat    :: g Float
-  lfloat    = lconstant
-  ldouble   :: g Double
-  ldouble   = lconstant
-  lchar     :: g Char
-  lchar     = lconstant
-  lunit     :: g ()
-  lunit     = lconstant
-  lprod     :: g a -> g b -> g (a, b)
-  lfield    :: String -> g a -> g a
-  lcon      :: String -> g a -> g a
-  ltype     :: EP b a -> g a -> g b
+import Records
 
 data ToText a = ToText {text :: a -> String}
 
@@ -75,5 +48,3 @@ instance Rep View String where
 
 capitalize "" = ""
 capitalize (c:cs) = toUpper c : cs
-
--- TODO: Public or Private wrapper-types that work on user-input

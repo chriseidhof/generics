@@ -2,16 +2,16 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE UndecidableInstances #-}
-module Relations.BelongsTo where
+module Generics.Records.Relations.BelongsTo where
 
-import Records
-import Collect
-import Database
-import ModelName
-import qualified Database.Columns as C
-import Database.Values
-import Database.Parse
 import Control.Applicative
+import Generics.Records
+import Generics.Records.Collect
+import Generics.Records.Database
+import Generics.Records.ModelName
+import Generics.Records.Database.Values
+import Generics.Records.Database.Parse
+import qualified Generics.Records.Database.Columns as C
 
 data BelongsTo a = BTNotFetched | BTId Int | BTFetched (Int, a)
  deriving Show

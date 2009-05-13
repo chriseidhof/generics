@@ -1,9 +1,9 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-module ModelName where
+module Generics.Records.ModelName where
 
-import Records
+import Generics.Records
 
 data ModelName a = ModelName {toModelName :: a -> String}
 instance Labeled ModelName where

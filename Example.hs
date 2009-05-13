@@ -2,19 +2,19 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-module User where
+module Generics.Records.User where
 
 import Control.Applicative
 import Data.Maybe (fromJust)
 import Data.Time (UTCTime)
-import Database
 import Database.HDBC.Sqlite3 (Connection, connectSqlite3)
-import Database.Parse
-import Database.Values
-import ModelName
-import Records
-import Relations
-import qualified Database.Columns as C
+import Generics.Records.Database
+import Generics.Records.Database.Parse
+import Generics.Records.Database.Values
+import Generics.Records.ModelName
+import Generics.Records
+import Generics.Records.Relations
+import qualified Generics.Records.Database.Columns as C
 
 test = do
   conn <- connectSqlite3 "example.sqlite3"
