@@ -8,8 +8,8 @@ module Generics.Records.Database (
 
 import Control.Applicative
 import Generics.Records
-import Generics.Records.Database.Columns
-import Generics.Records.Database.Values
+import Generics.Records.Database.Columns hiding (ignore)
+import Generics.Records.Database.Values hiding (ignore)
 import Generics.Records.Database.Parse
 import Database.HDBC
 import Generics.Records.ModelName
