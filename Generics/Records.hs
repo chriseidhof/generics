@@ -1,7 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 module Generics.Records where
 
-
 class Rep g a where
   rep :: g a
 
@@ -27,3 +26,6 @@ class Labeled g where
   lcon      :: String -> g a -> g a
   lcon _ x  = x
   ltype     :: EP b a -> g a -> g b
+
+-- Some default types
+newtype Password = Password {password :: String} deriving (Show, Read)

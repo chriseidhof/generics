@@ -33,4 +33,9 @@ instance Rep Form String where
 form :: (Rep Form a) => Maybe a -> F.XHtmlForm Identity a
 form = toForm rep
 
+
+-- Password type, should move to a separate "handy types" file.
+instance Rep Form Password where
+  rep = ToForm (\x -> Password <$> F.password (password <$> x))
+
 safeRead s = maybeRead' s "Error parsing value"

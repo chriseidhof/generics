@@ -17,6 +17,9 @@ instance Labeled Values where
 instance Rep Values String where
   rep = Values $ \x -> [toSql x]
 
+instance Rep Values Password where
+  rep = Values $ \x -> [toSql $ password x]
+
 ignore = Values $ \_ -> []
 
 values :: (Rep Values a) => a -> [SqlValue]

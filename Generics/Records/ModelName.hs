@@ -17,6 +17,9 @@ instance Labeled ModelName where
 instance Rep ModelName String where
   rep = err
 
+instance Rep ModelName Password where
+  rep = err
+
 err = error "ModelName not defined"
 
 modelName :: (Rep ModelName a) => a -> String

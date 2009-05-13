@@ -28,7 +28,7 @@ new x = let v = values x
             c = columns x
             q = newQuery (tableName x) c
         in case (length v == length c) of
-                False -> error "Incorrect instances for Values and Columns"
+                False -> error $ "Incorrect instances for Values and Columns: " ++ show (v,c)
                 True -> do
                      quickQueryS q v
                      [[i]] <- quickQueryS "SELECT last_insert_rowid() AS [ID]" []
