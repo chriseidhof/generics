@@ -14,10 +14,10 @@ Exposed-Modules:   Generics.Records
                  , Generics.Records.Relations.BelongsTo
                  , Generics.Records.Views
                  , Generics.Records.Forms
+                 , Generics.Records.ModelName
 Other-Modules:  Generics.Records.Database.Columns,
                 Generics.Records.Database.Values,
                 Generics.Records.Database.Parse
-                Generics.Records.ModelName
 Build-Type:      Simple
 Build-Depends:   base >= 4, 
                  mtl,

@@ -1,5 +1,10 @@
 {-# LANGUAGE FlexibleContexts #-}
-module Generics.Records.Database where
+module Generics.Records.Database (
+  runDB, new, find, update, DB,
+  Columns,
+  Values,
+  Parse
+) where
 
 import Control.Applicative
 import Generics.Records
