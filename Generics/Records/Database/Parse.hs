@@ -8,10 +8,6 @@ import Control.Monad.State
 import Database.HDBC
 import Generics.Records
 
-instance Applicative (State s) where
-  pure = return
-  (<*>) = ap
-
 data Parse a = Parse {toParse :: State [SqlValue] (Maybe a)}
 instance Labeled Parse where
   lconstant    = parseUsingRead

@@ -7,7 +7,7 @@ import Data.Char (toUpper)
 import Text.XHtml.Strict ((+++), (<<))
 import qualified Text.XHtml.Strict as X
 
-import Records
+import Generics.Records
 
 data ToText a = ToText {text :: a -> String}
 

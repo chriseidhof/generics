@@ -23,5 +23,7 @@ class Labeled g where
   lunit     = lconstant
   lprod     :: g a -> g b -> g (a, b)
   lfield    :: String -> g a -> g a
+  lcon _ x  = x
   lcon      :: String -> g a -> g a
+  lcon _ x  = x
   ltype     :: EP b a -> g a -> g b
