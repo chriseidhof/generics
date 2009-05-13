@@ -1,9 +1,9 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Generics.Records.Database (
   runDB, new, find, update, DB,
-  Columns,
-  Values,
-  Parse
+  module Generics.Records.Database.Columns,
+  module Generics.Records.Database.Values,
+  module Generics.Records.Database.Parse
 ) where
 
 import Control.Applicative
