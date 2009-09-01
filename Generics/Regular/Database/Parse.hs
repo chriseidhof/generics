@@ -11,7 +11,7 @@ import Generics.Regular
 type Parser a = State [SqlValue] (Maybe a)
 
 class ParseSql a where
-  parse :: Parser a
+  parsef :: Parser a
 
 class GParse f where
   gparsef :: Parser a -> Parser (f a)
@@ -23,7 +23,7 @@ instance (Constructor c, GParse f) => GParse (C c f) where
   gparsef f = fmap C <$> gparsef f
 
 instance ParseSql a => GParse (K a) where
-  gparsef _ = fmap K <$> parse
+  gparsef _ = fmap K <$> parsef
 
 instance (GParse f, GParse g) => GParse (f :*: g) where
   gparsef f = do l <- gparsef f 
@@ -40,6 +40,10 @@ getOne = do x <- gets $ head' ("Database doesn't match defined schema.")
 
 parseUsingRead :: (Read a) => Parser a
 parseUsingRead = maybeRead <$> getOne
+
+parse :: (Regular a, GParse (PF a)) => [SqlValue] -> Maybe a
+parse x = evalState rec x
+ where rec = fmap to <$> gparsef rec
 
 -- TODO: refactor
 maybeRead :: Read a => SqlValue -> Maybe a

@@ -7,9 +7,6 @@ import Control.Applicative
 import Data.Maybe (fromJust)
 import Data.Time (UTCTime)
 import Database.HDBC.Sqlite3 (Connection, connectSqlite3)
--- import Generics.Records.Database
--- import Generics.Records.Database.Parse
--- import Generics.Records.Database.Values
 -- import Generics.Records.ModelName
 -- import Generics.Records
 import Generics.Records.Relations
@@ -17,6 +14,7 @@ import Generics.Records.Relations
 import Generics.Regular
 import Generics.Regular.Views
 import Generics.Regular.Formlets
+import Generics.Regular.Database
 import Generics.Regular.Database.Columns
 import Generics.Regular.Database.Values
 

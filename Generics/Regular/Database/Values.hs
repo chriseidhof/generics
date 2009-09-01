@@ -32,3 +32,6 @@ instance (Selector s, GValues f) => GValues (S s f) where
 
 gvalues :: (Regular a, GValues (PF a)) => a -> [SqlValue]
 gvalues = gvaluesf gvalues . from
+
+gvalues' :: (Regular a, GValues (PF a)) => PF a a -> [SqlValue]
+gvalues' = gvaluesf gvalues
