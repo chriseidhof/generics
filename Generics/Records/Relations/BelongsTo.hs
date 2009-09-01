@@ -11,7 +11,11 @@ import Generics.Records.Database
 import Generics.Records.ModelName
 import Generics.Records.Database.Values
 import Generics.Records.Database.Parse
+import Generics.Regular.Views
+import Generics.Regular.Formlets
+import qualified Text.XHtml.Strict as X
 import qualified Generics.Records.Database.Columns as C
+import qualified Text.XHtml.Strict.Formlets as F
 
 data BelongsTo a = BTNotFetched | BTId Int | BTFetched (Int, a)
  deriving (Show, Read)
@@ -22,6 +26,12 @@ instance Rep Parse (BelongsTo a) where
 instance Rep C.Columns (BelongsTo a) where rep = C.Columns $ \_ l  -> [l ++ "_id"]
 instance Rep Values    (BelongsTo a) where rep = Values toInt
 instance Rep ModelName (BelongsTo a) where rep = err
+
+instance Html (BelongsTo a) where
+  html = const X.noHtml
+
+instance Formlet (BelongsTo a) where
+  formlet _ = pure BTNotFetched
 
 -- A bit hacky
 toInt BTNotFetched      = [toSql ""]

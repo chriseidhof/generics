@@ -1,0 +1,43 @@
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+module Generics.Regular.Formlets where
+
+import Control.Applicative
+import Control.Applicative.Error
+import Control.Monad.Identity
+import Generics.Records.Views
+import Text.XHtml.Strict ((+++), (<<))
+import qualified Text.XHtml.Strict as X
+import qualified Text.XHtml.Strict.Formlets as F
+import Text.Formlets (check)
+import Generics.Regular
+
+type XFormlet a = F.XHtmlFormlet a
+
+class    Formlet a      where formlet :: XFormlet a
+instance Formlet Int    where formlet x = fromIntegral <$> F.inputInteger (toInteger <$> x)
+instance Formlet String where formlet = F.input
+
+
+class GFormlet f where
+  gformf :: XFormlet a -> XFormlet (f a)
+
+gform :: (Regular a, GFormlet (PF a)) => XFormlet a
+gform x = to <$> (gformf gform (from <$> x))
+
+instance (Constructor c, GFormlet f) => GFormlet (C c f) where
+  gformf f x = C <$> (gformf f $ unC <$> x)
+
+instance Formlet a => GFormlet (K a) where
+  gformf _ x = K <$> (formlet (unK <$> x))
+
+instance (GFormlet f, GFormlet g) => GFormlet (f :*: g) where
+  gformf f x = (:*:) <$> (gformf f (prodFst <$> x)) <*> (gformf f (prodSnd <$> x))
+
+prodFst (x :*: y) = x
+prodSnd (x :*: y) = y
+ 
+instance (Selector s, GFormlet f) => GFormlet (S s f) where
+  gformf f x = F.plug ((X.label << (selName (fromJust x) ++ ": ")) +++) $ S <$> gformf f (unS <$> x)
+   where fromJust (Just x) = x
