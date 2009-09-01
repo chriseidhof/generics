@@ -10,19 +10,19 @@ Author:          Chris Eidhof
 Maintainer:      Chris Eidhof <ce+hackage@tupil.com>
 Exposed-Modules:   Generics.Records
                  , Generics.Records.Database
+                   Generics.Records.Database.Parse
+                 , Generics.Records.Database.Columns
+                 , Generics.Records.Database.Values
+                 , Generics.Records.Forms
+                 , Generics.Records.ModelName
                  , Generics.Records.Relations
                  , Generics.Records.Relations.BelongsTo
                  , Generics.Records.Views
-                 , Generics.Records.Forms
-                 , Generics.Records.ModelName
-                 , Generics.Records.Database.Columns
-                 , Generics.Records.Database.Values
-                   Generics.Records.Database.Parse
 Build-Type:      Simple
 Build-Depends:   base >= 4, 
                  mtl,
                  HDBC,
                  HDBC-sqlite3,
                  xhtml,
-                 formlets >= 0.4.8,
+                 formlets >= 0.7,
                  applicative-extras

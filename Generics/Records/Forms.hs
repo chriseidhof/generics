@@ -13,11 +13,7 @@ import qualified Text.XHtml.Strict.Formlets as F
 import Text.Formlets (check)
 import Generics.Records
 
-data Form a = ToForm {toForm :: Maybe a -> F.XHtmlForm Identity a}
-
-instance Applicative Identity where
-  pure = return
-  (<*>) = ap
+data Form a = ToForm {toForm :: Maybe a -> F.XHtmlForm a}
 
 instance Labeled Form where
   lconstant    = ToForm (\x -> check (F.input (show <$> x)) safeRead)
@@ -30,7 +26,7 @@ instance Labeled Form where
 instance Rep Form String where
   rep = ToForm F.input
 
-form :: (Rep Form a) => Maybe a -> F.XHtmlForm Identity a
+form :: (Rep Form a) => Maybe a -> F.XHtmlForm a
 form = toForm rep
 
 
