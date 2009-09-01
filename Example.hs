@@ -17,6 +17,8 @@ import Generics.Records.Relations
 import Generics.Regular
 import Generics.Regular.Views
 import Generics.Regular.Formlets
+import Generics.Regular.Database.Columns
+import Generics.Regular.Database.Values
 
 -- test = do
 --   conn <- connectSqlite3 "example.sqlite3"

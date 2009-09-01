@@ -12,6 +12,7 @@ import qualified Text.XHtml.Strict as X
 import qualified Text.XHtml.Strict.Formlets as F
 import Text.Formlets (check)
 import Generics.Regular
+import Generics.Regular.Extras
 
 type XFormlet a = F.XHtmlFormlet a
 
@@ -35,8 +36,6 @@ instance Formlet a => GFormlet (K a) where
 instance (GFormlet f, GFormlet g) => GFormlet (f :*: g) where
   gformf f x = (:*:) <$> (gformf f (prodFst <$> x)) <*> (gformf f (prodSnd <$> x))
 
-prodFst (x :*: y) = x
-prodSnd (x :*: y) = y
  
 instance (Selector s, GFormlet f) => GFormlet (S s f) where
   gformf f x = F.plug ((X.label << (selName (fromJust x) ++ ": ")) +++) $ S <$> gformf f (unS <$> x)
