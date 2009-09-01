@@ -6,11 +6,9 @@ module Generics.Records.User where
 import Control.Applicative
 import Data.Maybe (fromJust)
 import Data.Time (UTCTime)
+import Database.HDBC (fromSql)
 import Database.HDBC.Sqlite3 (Connection, connectSqlite3)
--- import Generics.Records.ModelName
--- import Generics.Records
 import Generics.Regular.Relations
--- import qualified Generics.Records.Database.Columns as C
 import Generics.Regular
 import Generics.Regular.Views
 import Generics.Regular.Formlets
@@ -27,7 +25,12 @@ test = do
     return post'
 -- User datatype
 
-data User = User {name :: String, password :: String, age :: Int}
+newtype Password = Password {unpass :: String}
+ deriving Show
+instance ParseSql Password where parsef = (Just . Password . fromSql) <$> getOne
+instance Columns Password  where columns = const keep
+
+data User = User {name :: String, password :: Password, age :: Int}
  deriving (Show)
 data Post = Post {title :: String, body :: String, user :: BelongsTo User}
  deriving (Show)
