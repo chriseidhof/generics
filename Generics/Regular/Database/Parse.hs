@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 module Generics.Regular.Database.Parse where
 
 import Control.Applicative
@@ -9,6 +10,9 @@ import Database.HDBC
 import Generics.Regular
 
 type Parser a = State [SqlValue] (Maybe a)
+
+instance ParseSql [Char] where parsef = (Just . fromSql) <$> getOne
+instance ParseSql Int    where parsef = (Just . fromSql) <$> getOne
 
 class ParseSql a where
   parsef :: Parser a
@@ -31,7 +35,7 @@ instance (GParse f, GParse g) => GParse (f :*: g) where
                  return $ (:*:) <$> l <*> r
 
 instance (Selector s, GParse f) => GParse (S s f) where
-  gparsef f = gparsef f
+  gparsef f = fmap S <$> gparsef f
 
 getOne :: State [SqlValue] SqlValue
 getOne = do x <- gets $ head' ("Database doesn't match defined schema.")
@@ -42,7 +46,7 @@ parseUsingRead :: (Read a) => Parser a
 parseUsingRead = maybeRead <$> getOne
 
 parse :: (Regular a, GParse (PF a)) => [SqlValue] -> Maybe a
-parse x = evalState rec x
+parse = evalState rec
  where rec = fmap to <$> gparsef rec
 
 -- TODO: refactor

@@ -1,31 +1,29 @@
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE UndecidableInstances #-}
-module Generics.Records.Relations.BelongsTo where
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+module Generics.Regular.Relations.BelongsTo where
 
 import Control.Applicative
 import Database.HDBC (toSql)
-import Generics.Records
-import Generics.Records.Database
-import Generics.Records.ModelName
-import Generics.Records.Database.Values
+import Generics.Regular
+import Generics.Regular.Database hiding (maybeRead, getOne)
+import Generics.Regular.ModelName
+import Generics.Regular.Database.Values
 import Generics.Records.Database.Parse
 import Generics.Regular.Views
 import Generics.Regular.Formlets
 import qualified Text.XHtml.Strict as X
-import qualified Generics.Records.Database.Columns as C
+import qualified Generics.Regular.Database.Columns as C
 import qualified Text.XHtml.Strict.Formlets as F
 
 data BelongsTo a = BTNotFetched | BTId Int | BTFetched (Int, a)
  deriving (Show, Read)
 
-instance Rep Parse (BelongsTo a) where
-  rep = Parse $ Just <$> ((maybe BTNotFetched BTId . maybeRead) <$> getOne) -- Can this be done easier?
+instance ParseSql (BelongsTo a) where
+  parsef = Just <$> ((maybe BTNotFetched BTId . maybeRead) <$> getOne) -- Can this be done easier?
 
-instance Rep C.Columns (BelongsTo a) where rep = C.Columns $ \_ l  -> [l ++ "_id"]
-instance Rep Values    (BelongsTo a) where rep = Values toInt
-instance Rep ModelName (BelongsTo a) where rep = err
+instance C.Columns (BelongsTo a) where columns _ l  = [l ++ "_id"]
+instance Values    (BelongsTo a) where values = toInt
 
 instance Html (BelongsTo a) where
   html = const X.noHtml
@@ -43,8 +41,8 @@ data RBelongsTo a b = RBT { btField  :: a -> BelongsTo b
                           , btUpdate :: a -> BelongsTo b -> a
                           }
 
-fillBelongsTo :: ( Rep Parse c, Rep C.Columns c
-                 , Rep ModelName c, Show c
+fillBelongsTo :: ( Regular c, GParse (PF c), GColumns (PF c)
+                 , GModelName (PF c), Show c
                  ) => m 
                    -> (RBelongsTo m c)
                    -> DB m

@@ -17,6 +17,7 @@ import Data.Char (toLower)
 import Data.List (intercalate)
 import Database.HDBC.Sqlite3 (Connection)
 import Control.Monad.State
+import Control.Monad.Trans (liftIO)
 
 type DB a = StateT Connection IO a
 
