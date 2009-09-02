@@ -45,6 +45,9 @@ getOne = do x <- gets $ head' ("Database doesn't match defined schema.")
 parseUsingRead :: (Read a) => Parser a
 parseUsingRead = maybeRead <$> getOne
 
+gparse :: (Regular a, GParse (PF a)) => Parser a
+gparse = fmap to <$> gparsef gparse
+
 parse :: (Regular a, GParse (PF a)) => [SqlValue] -> Maybe a
 parse = evalState rec
  where rec = fmap to <$> gparsef rec

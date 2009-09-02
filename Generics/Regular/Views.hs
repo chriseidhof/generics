@@ -6,6 +6,7 @@ module Generics.Regular.Views where
 import Data.Char (toUpper)
 import Text.XHtml.Strict ((+++), (<<))
 import qualified Text.XHtml.Strict as X
+import qualified Text.JSON as J
 
 import Generics.Regular
 
@@ -29,6 +30,9 @@ instance (Selector s, GText f) => GText (S s f) where
 
 gtoText :: (Regular a, GText (PF a)) => a -> String
 gtoText x = toText gtoText (from x)
+
+
+-- Html stuff
 
 class Html a where
   html :: a -> X.Html
@@ -57,16 +61,34 @@ instance (Selector s, GHtml f) => GHtml (S s f) where
 ghtml :: (Regular a, GHtml (PF a)) => a -> X.Html
 ghtml x = ghtmlf ghtml (from x)
 
+-- JSON stuff
 
---   lconstant    = View (X.toHtml . show)
---   lunit        = View (const X.noHtml)
---   lprod ra rb  = View $ \(a,b) -> toView ra a +++ X.br +++ toView rb b
---   lfield l r   = View $ \v -> (X.label << (capitalize l ++ ": ")) +++ toView r v
---   lcon   l r   = View $ \v -> (X.h1 << capitalize l) +++ toView r v
---   ltype ep r   = View $ \v -> toView r (from ep v)
--- 
--- instance Rep View String where
---   rep = View X.toHtml
-
+--class Json a where
+--  json :: a -> J.JSValue
+--
+----instance Html Int    where html = X.toHtml . show
+----instance Html String where html = X.toHtml 
+--
+--class GJSon f where
+--  gjsonf :: (a -> J.JSValue) -> f a -> J.JSValue
+--
+--instance GJson I where
+--  gjsonf f (I r) = f r
+--
+--instance (Constructor c, GJson f) => GJson (C c f) where
+--  gjsonf f cx@(C x) = gjsonf f x
+--
+--instance Json a => GJson (K a) where
+--  gjsonf _ (K x) = json x
+--
+--instance (GJson f, GJson g) => GJson (f :*: g) where
+--  gjsonf f (x :*: y) = let gjsonf f x +++ X.br +++ gjsonf f y
+--
+--instance (Selector s, GJson f) => GJson (S s f) where
+--  gjsonf f s@(S x) = X.label << ((capitalize $ selName s) ++ ": ") +++ gjsonf f x
+--
+--gjson :: (Regular a, GJson (PF a)) => a -> X.Html
+--gjson x = gjsonf gjson (from x)
+--
 capitalize "" = ""
 capitalize (c:cs) = toUpper c : cs

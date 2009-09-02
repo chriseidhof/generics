@@ -6,7 +6,6 @@ module Generics.Regular.Formlets where
 import Control.Applicative
 import Control.Applicative.Error
 import Control.Monad.Identity
-import Generics.Records.Views
 import Text.XHtml.Strict ((+++), (<<))
 import qualified Text.XHtml.Strict as X
 import qualified Text.XHtml.Strict.Formlets as F

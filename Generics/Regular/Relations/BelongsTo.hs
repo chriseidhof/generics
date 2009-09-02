@@ -9,7 +9,7 @@ import Generics.Regular
 import Generics.Regular.Database hiding (maybeRead, getOne)
 import Generics.Regular.ModelName
 import Generics.Regular.Database.Values
-import Generics.Records.Database.Parse
+import Generics.Regular.Database.Parse
 import Generics.Regular.Views
 import Generics.Regular.Formlets
 import qualified Text.XHtml.Strict as X

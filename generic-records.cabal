@@ -1,5 +1,5 @@
 Name:            generic-records
-Version:         0.1
+Version:         0.2
 Synopsis:        Generic Records for model-driven development
 Description:     TODO
 Category:        Generics, Web, Database
@@ -8,16 +8,16 @@ License-file:    LICENSE
 Copyright:       (c) Chris Eidhof
 Author:          Chris Eidhof
 Maintainer:      Chris Eidhof <ce+hackage@tupil.com>
-Exposed-Modules:   Generics.Records
-                 , Generics.Records.Database
-                   Generics.Records.Database.Parse
-                 , Generics.Records.Database.Columns
-                 , Generics.Records.Database.Values
-                 , Generics.Records.Forms
-                 , Generics.Records.ModelName
-                 , Generics.Records.Relations
-                 , Generics.Records.Relations.BelongsTo
-                 , Generics.Records.Views
+Exposed-Modules:   Generics.Regular.Database
+                   Generics.Regular.Database.Parse
+                 , Generics.Regular.Database.Columns
+                 , Generics.Regular.Database.Values
+                 , Generics.Regular.Formlets
+                 , Generics.Regular.ModelName
+                 , Generics.Regular.Relations
+                 , Generics.Regular.Relations.BelongsTo
+                 , Generics.Regular.Views
+Other-Modules:   Generics.Regular.Extras
 Build-Type:      Simple
 Build-Depends:   base >= 4, 
                  mtl,
@@ -25,4 +25,5 @@ Build-Depends:   base >= 4,
                  HDBC-sqlite3,
                  xhtml,
                  formlets >= 0.7,
-                 applicative-extras
+                 applicative-extras,
+                 regular >= 0.1.0.2

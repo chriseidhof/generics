@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Generics.Regular.Database (
-  runDB, new, find, update, DB,
+  runDB, new, find, update, findAll, DB,
   module Generics.Regular.Database.Columns,
   module Generics.Regular.Database.Values,
   module Generics.Regular.Database.Parse
@@ -15,6 +15,7 @@ import Database.HDBC
 import Generics.Regular.ModelName
 import Data.Char (toLower)
 import Data.List (intercalate)
+import Data.Maybe (catMaybes)
 import Database.HDBC.Sqlite3 (Connection)
 import Control.Monad.State
 import Control.Monad.Trans (liftIO)
@@ -52,6 +53,16 @@ find u i = do let q = findQuery (tableName $ from u) (gtocolumns u)
                         [r] -> return r
                         _   -> return Nothing
 
+findAll :: (Regular a, GParse (PF a), GColumns (PF a), GModelName (PF a), Show a) => a -> [(String, SqlValue)] -> DB [(Int, a)]
+findAll u w = do let q  = findAllQuery (tableName $ from u) ("id" : (gtocolumns u)) w
+                 liftIO $ print q
+                 x <- (quickQueryS q $ map snd w)
+                 return $ catMaybes $ map (evalState parse') x
+    where parse' :: (Regular a, GParse (PF a)) => Parser (Int, a)
+          parse' = do Just i <- parseUsingRead
+                      x <- gparse
+                      return $ fmap (\v -> (i,v)) x
+
 tableName x = (map toLower $ gmodelName x) ++ "s"
 
 quickQueryS :: String -> [SqlValue] -> DB [[SqlValue]]
@@ -62,3 +73,6 @@ newQuery tableName columns = "INSERT INTO " ++ tableName ++ " (" ++ (intercalate
 updateQuery tableName columns = "UPDATE " ++ tableName ++ " SET (" ++ (intercalate ", " columns) ++ ") VALUES (" ++ (intercalate ", " $ map (const "?") columns) ++ ") WHERE id = ?"
 
 findQuery tableName columns = "SELECT " ++ (intercalate ", " columns) ++ " FROM " ++ tableName ++ " WHERE id = ? LIMIT 1"
+
+findAllQuery tableName columns fields = "SELECT " ++ (intercalate ", " columns) ++ " FROM " ++ tableName ++ " WHERE " ++ conds ++" LIMIT 1"
+  where conds = intercalate " AND " $ map ((++ " = ?") . fst) fields
