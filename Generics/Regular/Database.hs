@@ -36,17 +36,20 @@ new x = let v = gvalues x
                      [[i]] <- quickQueryS "SELECT last_insert_rowid() AS [ID]" []
                      return $ fromInteger $ fromSql i
 
-update :: (Regular a, Values a, GValues (PF a), GColumns (PF a), GModelName (PF a)) => a -> Int -> DB ()
-update x i = let v = values x
+update :: (Regular a, GValues (PF a), GColumns (PF a), GModelName (PF a)) => a -> Int -> DB ()
+update x i = let v = gvalues x
                  c = gtocolumns x
                  q = updateQuery (tableName $ from x) c
                   in case (length v == length c) of
                     False -> error "Incorrect instances for Values and Columns"
-                    True -> do quickQueryS q (v ++ [toSql i])
+                    True -> do liftIO (print q)
+                               liftIO $ print v
+                               quickQueryS q (v ++ [toSql i])
                                return ()
 
 find :: (Regular a, GParse (PF a), GColumns (PF a), GModelName (PF a), Show a) => a -> Int -> DB (Maybe a)
 find u i = do let q = findQuery (tableName $ from u) (gtocolumns u)
+              liftIO $ print q
               res <- map parse <$> (quickQueryS q [toSql i])
               case res of
                         []  -> return Nothing
@@ -55,7 +58,6 @@ find u i = do let q = findQuery (tableName $ from u) (gtocolumns u)
 
 findAll :: (Regular a, GParse (PF a), GColumns (PF a), GModelName (PF a), Show a) => a -> [(String, SqlValue)] -> DB [(Int, a)]
 findAll u w = do let q  = findAllQuery (tableName $ from u) ("id" : (gtocolumns u)) w
-                 liftIO $ print q
                  x <- (quickQueryS q $ map snd w)
                  return $ catMaybes $ map (evalState parse') x
     where parse' :: (Regular a, GParse (PF a)) => Parser (Int, a)
@@ -70,9 +72,12 @@ quickQueryS q v = get >>= \conn -> liftIO (quickQuery' conn q v)
                         
 
 newQuery tableName columns = "INSERT INTO " ++ tableName ++ " (" ++ (intercalate ", " columns) ++ ") VALUES (" ++ (intercalate ", " $ map (const "?") columns) ++ ")"
-updateQuery tableName columns = "UPDATE " ++ tableName ++ " SET (" ++ (intercalate ", " columns) ++ ") VALUES (" ++ (intercalate ", " $ map (const "?") columns) ++ ") WHERE id = ?"
+updateQuery tableName columns = "UPDATE " ++ tableName ++ " SET " ++ (intercalate ", " changes) ++ " WHERE id = ?"
+                                                                                                                            where changes = map (++ " = ?") columns
+                                                                                                                                                                              
 
 findQuery tableName columns = "SELECT " ++ (intercalate ", " columns) ++ " FROM " ++ tableName ++ " WHERE id = ? LIMIT 1"
 
-findAllQuery tableName columns fields = "SELECT " ++ (intercalate ", " columns) ++ " FROM " ++ tableName ++ " WHERE " ++ conds ++" LIMIT 1"
-  where conds = intercalate " AND " $ map ((++ " = ?") . fst) fields
+findAllQuery tableName columns fields = "SELECT " ++ (intercalate ", " columns) ++ " FROM " ++ tableName ++ (conds fields)
+  where conds []      = ""
+        conds (x:xs)  = "WHERE " ++ (intercalate " AND " $ map ((++ " = ?") . fst) (x:xs))

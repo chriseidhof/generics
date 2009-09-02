@@ -42,6 +42,9 @@ getOne = do x <- gets $ head' ("Database doesn't match defined schema.")
             modify tail
             return x
 
+getString :: Parser String
+getString = maybeRead <$> getOne
+
 parseUsingRead :: (Read a) => Parser a
 parseUsingRead = maybeRead <$> getOne
 

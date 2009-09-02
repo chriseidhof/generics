@@ -23,8 +23,8 @@ instance Formlet String where formlet = F.input
 class GFormlet f where
   gformf :: XFormlet a -> XFormlet (f a)
 
-gform :: (Regular a, GFormlet (PF a)) => XFormlet a
-gform x = to <$> (gformf gform (from <$> x))
+gformlet :: (Regular a, GFormlet (PF a)) => XFormlet a
+gformlet x = to <$> (gformf gformlet (from <$> x))
 
 instance (Constructor c, GFormlet f) => GFormlet (C c f) where
   gformf f x = C <$> (gformf f $ unC <$> x)
@@ -33,7 +33,7 @@ instance Formlet a => GFormlet (K a) where
   gformf _ x = K <$> (formlet (unK <$> x))
 
 instance (GFormlet f, GFormlet g) => GFormlet (f :*: g) where
-  gformf f x = (:*:) <$> (gformf f (prodFst <$> x)) <*> (gformf f (prodSnd <$> x))
+  gformf f x = (:*:) <$> (gformf f (prodFst <$> x)) <* F.xml X.br <*> (gformf f (prodSnd <$> x))
 
  
 instance (Selector s, GFormlet f) => GFormlet (S s f) where

@@ -27,6 +27,7 @@ instance Values    (HasMany a) where values _ = []
 
 -- Existential?
 data RHasMany a b = RHM { hmField  :: a -> HasMany b
+                        , hmForeignKey :: String
                         , hmUpdate :: a -> HasMany b -> a
                         }
 
@@ -37,19 +38,9 @@ fillHasMany :: ( Regular c, GParse (PF c), GColumns (PF c)
                    -> (RHasMany m c)
                    -> DB m
 fillHasMany u ix bt = case hmField bt u of
-                        HMNotFetched -> do rels <- findAll (hmType bt) [("user_id", toSql ix)]
+                        HMNotFetched -> do rels <- findAll (hmType bt) [(hmForeignKey bt, toSql ix)]
                                            return $ hmUpdate bt u $ HMFetched rels
-                                           
-                         --HMNotFetched    -> error "fillBelongsTo"
-                         --HMNotFetched    -> do value <- find (fromBelongsTo $ btField bt u) x
-                         --                      let value' = fromMaybe' "fillBelongsTo" value
-                         --                      return $ btUpdate bt u $ BTFetched (x, value')
-                         --x@(BTFetched _) -> return $ btUpdate bt u x
--- where fromBelongsTo (BTFetched (x,y)) = y
---       fromBelongsTo _                 = error "fromBelongsTo"
-
---fromMaybe' e (Just x) = x
---fromMaybe' e _        = error e
+                        HMFetched _  -> return u
 
 hmType :: RHasMany m c -> c
 hmType = undefined

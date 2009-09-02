@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE EmptyDataDecls #-}
 {-# LANGUAGE TypeFamilies #-}
-module Generics.Records.User where
+module Example where
 
 import Control.Applicative
 import Data.Maybe (fromJust)

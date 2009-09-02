@@ -61,6 +61,34 @@ instance (Selector s, GHtml f) => GHtml (S s f) where
 ghtml :: (Regular a, GHtml (PF a)) => a -> X.Html
 ghtml x = ghtmlf ghtml (from x)
 
+
+class Table a where
+  table :: a -> X.Html
+
+class GTable f where
+  gtablef :: (a -> X.Html) -> f a -> X.Html
+
+instance GTable I where
+  gtablef f (I r) = f r
+
+instance (Constructor c, GTable f) => GTable (C c f) where
+  gtablef f cx@(C x) = X.tr << (gtablef f x)
+
+instance Html a => GTable (K a) where
+  gtablef _ (K x) = html x
+
+instance (GTable f, GTable g) => GTable (f :*: g) where
+  gtablef f (x :*: y) = gtablef f x +++ gtablef f y
+
+instance (Selector s, GTable f) => GTable (S s f) where
+  gtablef f s@(S x) = X.td << gtablef f x
+
+gtableRow :: (Regular a, GTable (PF a)) => a -> X.Html
+gtableRow x = gtablef gtableRow (from x)
+
+gtable :: (Regular a, GTable (PF a)) => [a] -> X.Html
+gtable xs = X.table << map gtableRow xs
+
 -- JSON stuff
 
 --class Json a where
