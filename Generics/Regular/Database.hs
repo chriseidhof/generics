@@ -42,14 +42,13 @@ update x i = let v = gvalues x
                  q = updateQuery (tableName $ from x) c
                   in case (length v == length c) of
                     False -> error "Incorrect instances for Values and Columns"
-                    True -> do liftIO (print q)
-                               liftIO $ print v
-                               quickQueryS q (v ++ [toSql i])
+                    True -> do quickQueryS q (v ++ [toSql i])
                                return ()
 
 find :: (Regular a, GParse (PF a), GColumns (PF a), GModelName (PF a), Show a) => a -> Int -> DB (Maybe a)
 find u i = do let q = findQuery (tableName $ from u) (gtocolumns u)
-              liftIO $ print q
+              restmp <- (quickQueryS q [toSql i])
+              liftIO (print restmp)
               res <- map parse <$> (quickQueryS q [toSql i])
               case res of
                         []  -> return Nothing

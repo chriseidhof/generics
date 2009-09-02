@@ -4,7 +4,7 @@
 module Generics.Regular.Relations.BelongsTo where
 
 import Control.Applicative
-import Database.HDBC (toSql)
+import Database.HDBC (toSql, fromSql)
 import Generics.Regular
 import Generics.Regular.Database hiding (maybeRead, getOne)
 import Generics.Regular.ModelName
@@ -20,7 +20,10 @@ data BelongsTo a = BTNotFetched | BTId Int | BTFetched (Int, a)
  deriving (Show, Read)
 
 instance ParseSql (BelongsTo a) where
-  parsef = Just <$> ((maybe BTNotFetched BTId . maybeRead) <$> getOne) -- Can this be done easier?
+  parsef = Just <$> ((maybe BTNotFetched BTId . readId . fromSql) <$> getOne) -- Can this be done easier?
+    where readId :: String -> Maybe Int
+          readId (x:xs) = read (x:xs)
+          readId _      = Nothing
 
 instance C.Columns (BelongsTo a) where columns _ l  = [l ++ "_id"]
 instance Values    (BelongsTo a) where values = toInt

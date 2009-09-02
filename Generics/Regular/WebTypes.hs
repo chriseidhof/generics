@@ -19,10 +19,10 @@ instance Values   Password where values    = return . toSql . unpass
 instance Html     Password where html      = const X.noHtml
 instance Formlet  Password where formlet x = Password <$> F.password (unpass <$> x)
 
---newtype Textarea = Textarea {untextarea :: String} deriving Show
---
---instance ParseSql Textarea where parsef    = fmap Textarea <$> getString
---instance Columns  Textarea where columns   = const keep
---instance Values   Textarea where values    = return . toSql . untextarea
---instance Html     Textarea where html      = const X.noHtml
---instance Formlet  Textarea where formlet x = Textarea <$> F.textarea (untextarea <$> x)
+newtype Textarea = Textarea {untextarea :: String} deriving Show
+
+instance ParseSql Textarea where parsef    = fmap Textarea <$> getString
+instance Columns  Textarea where columns   = const keep
+instance Values   Textarea where values    = return . toSql . untextarea
+instance Html     Textarea where html      = const X.noHtml
+instance Formlet  Textarea where formlet x = Textarea <$> F.textarea (Just 10) (Just 80) (untextarea <$> x)
