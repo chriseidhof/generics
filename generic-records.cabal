@@ -17,6 +17,8 @@ Exposed-Modules:   Generics.Regular.Database
                  , Generics.Regular.Relations
                  , Generics.Regular.Relations.BelongsTo
                  , Generics.Regular.Views
+                 , Generics.Regular.Happstack
+                 , Generics.Regular.WebTypes
 Other-Modules:   Generics.Regular.Extras
 Build-Type:      Simple
 Build-Depends:   base >= 4, 
@@ -26,4 +28,7 @@ Build-Depends:   base >= 4,
                  xhtml,
                  formlets >= 0.7,
                  applicative-extras,
+                 json >= 0.4,
+                 fclabels >= 0.4,
+                 happstack-server >= 0.3,
                  regular >= 0.1.0.2
