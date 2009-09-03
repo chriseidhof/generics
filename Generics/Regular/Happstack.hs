@@ -2,11 +2,12 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE TypeOperators #-}
 module Generics.Regular.Happstack where
 
 import Control.Applicative
 import Control.Applicative.Error
-import Control.Applicative.State
+import Control.Applicative.State hiding (get)
 import Text.Formlets
 import qualified Text.XHtml.Strict.Formlets as F
 import qualified Text.XHtml.Strict as X
@@ -18,22 +19,37 @@ import Generics.Regular.Database
 import Generics.Regular.ModelName
 import Generics.Regular.Views
 import Generics.Regular.WebTypes
+import Data.Record.Label
+import qualified Data.Record.Label as L
 
 data TW a
 
 type LiftDB = forall a . DB a -> ServerPartT IO a
 
+data Config a view edit = Config {convertView :: a :-> view, convertEdit :: a :-> edit}
+defaultConfig = Config {convertView = label id const, convertEdit = label id const}
+
+toTW :: Config a b c -> TW a
+toTW = undefined
+
+toTWView :: Config a b c -> TW b
+toTWView = undefined
+
+toTWEdit :: Config a b c -> TW c
+toTWEdit = undefined
+
 -- generic CRUD
 
-crudHandler :: (Regular a
+crudHandler :: (Regular a, Regular view, Regular edit
                ,GHtml (PF a), GFormlet (PF a), GTable (PF a), GValues (PF a), GColumns (PF a), GModelName (PF a), GParse (PF a) 
-               ,Show a
+               ,GHtml (PF view), GFormlet (PF edit), GTable (PF view), GModelName (PF view)
+               ,Show a, Show view
                ) 
-            => TW a -> LiftDB -> ServerPartT IO Response
-crudHandler tw db = create tw db
-       `mplus` (dir "view" $ uriRest (handleRead tw db))
-       `mplus` (dir "edit" $ uriRest (handleEdit tw db))
-       `mplus` (dir "list" (handleList tw db))
+            => TW a -> Config a view edit -> LiftDB -> ServerPartT IO Response
+crudHandler tw cf db = (create tw db)
+            `mplus` (dir "view" $ uriRest (handleRead cf db))
+            `mplus` (dir "edit" $ uriRest (handleEdit cf db))
+            `mplus` (handleList tw db)
 
 
 -- CRUD things
@@ -44,10 +60,11 @@ handleList tw  db = do x <- db $ findAll (unTw tw) []
                        okHtml $ gtable $ map snd x
             where unTw = undefined :: TW a -> a
 
-handleRead :: (Regular a, GHtml (PF a), GValues (PF a), GColumns (PF a), GModelName (PF a), GParse (PF a), Show a) 
-           => TW a -> LiftDB -> String -> ServerPartT IO Response
-handleRead tw db (x:xs) = do x <- findDB tw db (read xs)
-                             okHtml $ maybe X.noHtml ghtml x
+handleRead :: (Regular a, GHtml (PF a), GValues (PF a), GColumns (PF a), GModelName (PF a), GParse (PF a), Show a,
+               Regular view, GHtml (PF view), GModelName (PF view), Show view) 
+           => Config a view edit -> LiftDB -> String -> ServerPartT IO Response
+handleRead cf db (x:xs) = do x <- findDB (toTW cf) db (read xs)
+                             okHtml $ maybe X.noHtml (ghtml . get (unWrap $ convertView cf)) x
 
 findDB :: (Regular a, GValues (PF a), GColumns (PF a), GModelName (PF a), GParse (PF a), Show a) 
        => TW a -> LiftDB -> Int -> ServerPartT IO (Maybe a)
@@ -55,17 +72,19 @@ findDB tw db i = do x <- db $ find (unTw tw) i
                     return x
             where unTw = undefined :: TW a -> a
 
-handleEdit :: (Regular a, GFormlet (PF a), GValues (PF a), GColumns (PF a), GModelName (PF a), GParse (PF a), Show a) 
-       => TW a -> LiftDB -> String -> ServerPartT IO Response
-handleEdit tw db (x:xs) = do let i = read xs
-                             user <- findDB tw db i
-                             liftIO $ print user
-                             withForm Nothing (mkForm tw user) showErrorsInline (editDB i db)
+handleEdit :: (Regular a, Regular edit, GFormlet (PF edit), GValues (PF a), GColumns (PF a), GModelName (PF a), GParse (PF a), Show a) 
+       => Config a view edit -> LiftDB -> String -> ServerPartT IO Response
+handleEdit cf db (x:xs) = do let i = read xs
+                             elem <- findDB (toTW cf) db i
+                             let proj = fmap (get (unWrap $ convertEdit cf)) elem
+                             withForm Nothing (mkForm (toTWEdit cf) proj) showErrorsInline (editDB i db cf (fromJust $ elem))
+ where fromJust (Just x) = x -- todo
 
-editDB :: (Regular a, GFormlet (PF a), GValues (PF a), GColumns (PF a), GModelName (PF a), Show a) 
-       => Int -> LiftDB -> a -> ServerPartT IO Response
-editDB i db x = do db (update x i)
-                   okHtml "Item updated."
+editDB :: (Regular a, GValues (PF a), GColumns (PF a), GModelName (PF a), Show a) 
+       => Int -> LiftDB -> Config a view edit -> a -> edit -> ServerPartT IO Response
+editDB i db cfg src new = do let x = set (unWrap $ convertEdit cfg) new src
+                             db (update x i)
+                             okHtml "Item updated."
 
 create :: (Regular a, GFormlet (PF a), GValues (PF a), GColumns (PF a), GModelName (PF a), Show a) 
        => TW a -> LiftDB -> ServerPartT IO Response
