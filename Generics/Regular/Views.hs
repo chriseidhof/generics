@@ -3,12 +3,12 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 module Generics.Regular.Views where
 
-import Data.Char (toUpper)
 import Text.XHtml.Strict ((+++), (<<))
 import qualified Text.XHtml.Strict as X
 import qualified Text.JSON as J
 
 import Generics.Regular
+import Generics.Regular.Extras
 
 class GText f where
   toText :: (a -> String) -> f a -> String
@@ -26,7 +26,7 @@ instance (GText f, GText g) => GText (f :*: g) where
   toText f (x :*: y) = toText f x ++ "\n" ++ toText f y
 
 instance (Selector s, GText f) => GText (S s f) where
-  toText f s@(S x) = selName s ++ ": " ++ toText f x
+  toText f s@(S x) = h s ++ ": " ++ toText f x
 
 gtoText :: (Regular a, GText (PF a)) => a -> String
 gtoText x = toText gtoText (from x)
@@ -56,7 +56,7 @@ instance (GHtml f, GHtml g) => GHtml (f :*: g) where
   ghtmlf f (x :*: y) = ghtmlf f x +++ X.br +++ ghtmlf f y
 
 instance (Selector s, GHtml f) => GHtml (S s f) where
-  ghtmlf f s@(S x) = X.label << ((capitalize $ selName s) ++ ": ") +++ ghtmlf f x
+  ghtmlf f s@(S x) = X.label << ((h s) ++ ": ") +++ ghtmlf f x
 
 ghtml :: (Regular a, GHtml (PF a)) => a -> X.Html
 ghtml x = ghtmlf ghtml (from x)
@@ -118,5 +118,3 @@ gtable xs = X.table << map gtableRow xs
 --gjson :: (Regular a, GJson (PF a)) => a -> X.Html
 --gjson x = gjsonf gjson (from x)
 --
-capitalize "" = ""
-capitalize (c:cs) = toUpper c : cs

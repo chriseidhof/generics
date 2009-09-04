@@ -20,6 +20,8 @@ import Generics.Regular.ModelName
 import Generics.Regular.Views
 import Generics.Regular.WebTypes
 import Data.Record.Label
+import Data.List (intercalate)
+import Control.Monad.Reader (ask)
 import qualified Data.Record.Label as L
 
 data TW a
@@ -38,6 +40,11 @@ toTWView = undefined
 toTWEdit :: Config a b c -> TW c
 toTWEdit = undefined
 
+currentPath r = let lRest = length (intercalate "/" $ rqPaths r)
+                    revP  = reverse (rqUri r)
+                in reverse (drop lRest revP)
+
+
 -- generic CRUD
 
 crudHandler :: (Regular a, Regular view, Regular edit
@@ -46,25 +53,29 @@ crudHandler :: (Regular a, Regular view, Regular edit
                ,Show a, Show view
                ) 
             => TW a -> Config a view edit -> LiftDB -> ServerPartT IO Response
-crudHandler tw cf db = (create tw db)
-            `mplus` (dir "view" $ uriRest (handleRead cf db))
-            `mplus` (dir "edit" $ uriRest (handleEdit cf db))
-            `mplus` (handleList tw db)
+crudHandler tw cf db = askRq >>= \r ->
+  let cPath = currentPath r in
+            (dir "create" $ create tw db)
+            `mplus` (dir "view" $ path (handleRead cf db))
+            `mplus` (dir "edit" $ path (handleEdit cf db))
+            `mplus` (handleList tw cPath db)
 
 
 -- CRUD things
 --
 handleList :: (Regular a, GTable (PF a), GValues (PF a), GColumns (PF a), GModelName (PF a), GParse (PF a), Show a) 
-           => TW a -> LiftDB -> ServerPartT IO Response
-handleList tw  db = do x <- db $ findAll (unTw tw) []
-                       okHtml $ gtable $ map snd x
+           => TW a -> String -> LiftDB -> ServerPartT IO Response
+handleList tw path db = do x <- db $ findAll (unTw tw) []
+                           okHtml $   gtable (map snd x)
+                                 +++ (X.hotlink (path ++ "create") << "Add item")
             where unTw = undefined :: TW a -> a
 
 handleRead :: (Regular a, GHtml (PF a), GValues (PF a), GColumns (PF a), GModelName (PF a), GParse (PF a), Show a,
                Regular view, GHtml (PF view), GModelName (PF view), Show view) 
            => Config a view edit -> LiftDB -> String -> ServerPartT IO Response
-handleRead cf db (x:xs) = do x <- findDB (toTW cf) db (read xs)
-                             okHtml $ maybe X.noHtml (ghtml . get (unWrap $ convertView cf)) x
+handleRead cf db (xs) = do liftIO $ print xs
+                           x <- findDB (toTW cf) db (read xs)
+                           okHtml $ maybe X.noHtml (ghtml . get (unWrap $ convertView cf)) x
 
 findDB :: (Regular a, GValues (PF a), GColumns (PF a), GModelName (PF a), GParse (PF a), Show a) 
        => TW a -> LiftDB -> Int -> ServerPartT IO (Maybe a)
@@ -74,10 +85,10 @@ findDB tw db i = do x <- db $ find (unTw tw) i
 
 handleEdit :: (Regular a, Regular edit, GFormlet (PF edit), GValues (PF a), GColumns (PF a), GModelName (PF a), GParse (PF a), Show a) 
        => Config a view edit -> LiftDB -> String -> ServerPartT IO Response
-handleEdit cf db (x:xs) = do let i = read xs
-                             elem <- findDB (toTW cf) db i
-                             let proj = fmap (get (unWrap $ convertEdit cf)) elem
-                             withForm Nothing (mkForm (toTWEdit cf) proj) showErrorsInline (editDB i db cf (fromJust $ elem))
+handleEdit cf db xs = do let i = read xs
+                         elem <- findDB (toTW cf) db i
+                         let proj = fmap (get (unWrap $ convertEdit cf)) elem
+                         withForm (mkForm (toTWEdit cf) proj) showErrorsInline (editDB i db cf (fromJust $ elem))
  where fromJust (Just x) = x -- todo
 
 editDB :: (Regular a, GValues (PF a), GColumns (PF a), GModelName (PF a), Show a) 
@@ -88,7 +99,7 @@ editDB i db cfg src new = do let x = set (unWrap $ convertEdit cfg) new src
 
 create :: (Regular a, GFormlet (PF a), GValues (PF a), GColumns (PF a), GModelName (PF a), Show a) 
        => TW a -> LiftDB -> ServerPartT IO Response
-create tw db = withForm (Just "create") (mkForm tw Nothing) showErrorsInline (createDb db)
+create tw db = withForm (mkForm tw Nothing) showErrorsInline (createDb db)
 
 createDb db x = do ix <- db $ new x
                    okHtml $ show ix ++ " is successfully registered"
@@ -108,10 +119,10 @@ htmlPage content = (X.header << (X.thetitle << "Testing forms"))
 okHtml :: (X.HTML a) => a -> ServerPartT IO Response
 okHtml content = ok $ toResponse $ htmlPage $ content
 
-withForm :: Maybe String -> XForm a -> (X.Html -> [String] -> ServerPartT IO Response) -> (a -> ServerPartT IO Response) -> ServerPartT IO Response 
-withForm name frm handleErrors handleOk = maybe id dir name $ msum
- [ anyPath $ methodSP GET $ createForm [] frm >>= okHtml
- , anyPath $ withDataFn lookPairs $ \d ->
+withForm :: XForm a -> (X.Html -> [String] -> ServerPartT IO Response) -> (a -> ServerPartT IO Response) -> ServerPartT IO Response 
+withForm frm handleErrors handleOk = msum
+ [ methodSP GET $ createForm [] frm >>= okHtml
+ , withDataFn lookPairs $ \d ->
      methodSP POST $ handleOk' $ simple d
  ]
  where

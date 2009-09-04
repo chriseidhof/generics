@@ -20,29 +20,41 @@ import Data.Record.Label
 
 
 data UserView = UserView {name_ :: String, age_ :: Int} deriving Show
+data PostView = PostView {title_ :: String, body_ :: Textarea, author_ :: BelongsTo User} deriving Show
 
 data User = User {name :: String, password :: Password, age :: Int} deriving Show
-data Post = Post {title :: String, body :: Textarea, author :: BelongsTo User} deriving Show
+data Post = Post {title :: String, body :: String, author :: BelongsTo User} deriving Show
 
 
-$(deriveAll ''UserView "PFUserView")
-type instance PF UserView = PFUserView
 $(deriveAll ''User "PFUser")
-type instance PF User = PFUser
-$(mkLabels [''User])
 $(deriveAll ''Post "PFPost")
+$(deriveAll ''UserView "PFUserView")
+$(deriveAll ''PostView "PFPostView")
+type instance PF User = PFUser
 type instance PF Post = PFPost
+type instance PF UserView = PFUserView
+type instance PF PostView = PFPostView
 $(mkLabels [''Post])
+$(mkLabels [''User])
 
 userView :: User :-> UserView
-userView = Wrap $ UserView <$> cofmap' name_ lName <*> cofmap' age_ lAge
+userView = Wrap $ UserView <$> name_ =&= lName 
+                           <*> age_  =&= lAge
+
+(=&=) = cofmap'
+
+postView :: Post :-> PostView
+postView = Wrap $ PostView <$> title_  =&= lTitle 
+                           <*> (Textarea <$> ((unTextarea . body_) =&= lBody))
+                           <*> author_ =&= lAuthor
 
 userConfig = defaultConfig {convertView = userView, convertEdit = userView}
+postConfig = defaultConfig {convertView = postView, convertEdit = postView}
 
 
 mainHandler :: ServerPartT IO Response
 mainHandler =   dir "user" (crudHandler (undefined :: TW User) userConfig db)
-        `mplus` dir "post" (crudHandler (undefined :: TW Post) defaultConfig db)
+        `mplus` dir "post" (crudHandler (undefined :: TW Post) postConfig db)
 
 -- DB stuff
 db d = liftIO $ do conn <- connectSqlite3 "happstack.sqlite3"
