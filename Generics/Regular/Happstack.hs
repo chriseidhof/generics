@@ -30,13 +30,15 @@ data TW a
 type LiftDB = forall a . DB a -> ServerPartT IO a
 
 type BiDirectional a b = (a -> b, b -> a)
+type SP a = ServerPartT IO a
 
 data Config a view edit table create = Config { convertView  :: a :-> view
-                                     , convertEdit  :: a :-> edit
-                                     , convertTable :: a :-> table
-                                     , convertCreate :: Either (a -> create, create -> a) (ServerPartT IO a, a :-> create)
-                                     }
-defaultConfig = Config id' id' id' (Left (id,id))
+                                              , convertEdit  :: a :-> edit
+                                              , convertTable :: a :-> table
+                                              , convertCreate :: Either (a -> create, create -> a) (SP a, a :-> create)
+                                              , afterFind :: Int -> a -> SP a
+                                              }
+defaultConfig = Config id' id' id' (Left (id,id)) (const return)
  where id' = label id const
 
 toTW :: Config a b c d e-> TW a
@@ -89,19 +91,21 @@ handleRead :: (Regular a, Regular view,
                ) 
            => Config a view edit table create -> LiftDB -> String -> ServerPartT IO Response
 handleRead cf db (xs) = do liftIO $ print xs
-                           x <- findDB (toTW cf) db (read xs)
+                           x <- findDB cf db (read xs)
                            okHtml $ maybe X.noHtml (ghtml . get (unWrap $ convertView cf)) x
 
 findDB :: (Regular a, GValues (PF a), GColumns (PF a), GModelName (PF a), GParse (PF a), Show a) 
-       => TW a -> LiftDB -> Int -> ServerPartT IO (Maybe a)
-findDB tw db i = do x <- db $ find (unTw tw) i
-                    return x
-            where unTw = undefined :: TW a -> a
+       => Config a v e t c -> LiftDB -> Int -> SP (Maybe a)
+findDB cf db i = do x <- db $ find (unTw $ toTW cf) i
+                    case x of
+                         Nothing -> return Nothing
+                         Just x' -> Just <$> afterFind cf i x'
+                       where unTw = undefined :: TW a -> a
 
 handleEdit :: (Regular a, Regular edit, GFormlet (PF edit), GValues (PF a), GColumns (PF a), GModelName (PF a), GParse (PF a), Show a) 
        => Config a view edit table create -> LiftDB -> String -> ServerPartT IO Response
 handleEdit cf db xs = do let i = read xs
-                         elem <- findDB (toTW cf) db i
+                         elem <- findDB cf db i
                          let proj = fmap (get (unWrap $ convertEdit cf)) elem
                          withForm (mkForm (toTWEdit cf) proj) showErrorsInline (editDB i db cf (fromJust $ elem))
  where fromJust (Just x) = x -- todo

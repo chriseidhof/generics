@@ -25,7 +25,7 @@ instance ParseSql (HasMany a) where
 instance C.Columns (HasMany a) where columns _ l  = []
 instance Values    (HasMany a) where values _ = []
 
--- Existential?
+-- TODO: should be fclenses arrow 
 data RHasMany a b = RHM { hmField  :: a -> HasMany b
                         , hmForeignKey :: String
                         , hmUpdate :: a -> HasMany b -> a

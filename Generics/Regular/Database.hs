@@ -85,4 +85,4 @@ findQuery tableName columns = "SELECT " ++ (intercalate ", " columns) ++ " FROM 
 
 findAllQuery tableName columns fields = "SELECT " ++ (intercalate ", " columns) ++ " FROM " ++ tableName ++ (conds fields)
   where conds []      = ""
-        conds (x:xs)  = "WHERE " ++ (intercalate " AND " $ map ((++ " = ?") . fst) (x:xs))
+        conds (x:xs)  = " WHERE " ++ (intercalate " AND " $ map ((++ " = ?") . fst) (x:xs))

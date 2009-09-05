@@ -28,7 +28,7 @@ instance Formlet  Textarea where formlet x = Textarea <$> F.textarea (Just 10) (
 instance ParseSql CalendarTime where parsef  = fmap read <$> getString
 instance Values   CalendarTime where values  = return . toSql . show
 instance Columns  CalendarTime where columns = const keep
-instance Html     CalendarTime where html    = X.toHtml . calendarTimeToString
+instance Html     CalendarTime where html    = X.primHtml . calendarTimeToString
 
 newtype Markdown = Markdown {unMarkdown :: String} deriving Show
 instance Html Markdown where html = X.toHtml 
