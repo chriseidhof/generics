@@ -16,6 +16,7 @@ Exposed-Modules:   Generics.Regular.Database
                  , Generics.Regular.ModelName
                  , Generics.Regular.Relations
                  , Generics.Regular.Relations.BelongsTo
+                 , Generics.Regular.Relations.HasMany
                  , Generics.Regular.Views
                  , Generics.Regular.Happstack
                  , Generics.Regular.WebTypes
@@ -26,9 +27,11 @@ Build-Depends:   base >= 4,
                  HDBC,
                  HDBC-sqlite3,
                  xhtml,
-                 formlets >= 0.7,
+                 formlets == 0.6.1,
                  applicative-extras,
                  json >= 0.4,
                  fclabels >= 0.4,
                  happstack-server >= 0.3,
-                 regular >= 0.1.0.2
+                 regular >= 0.1.0.2,
+                 old-time >= 1.0,
+                 pandoc >= 1.2

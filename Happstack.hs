@@ -2,6 +2,7 @@
 {-# LANGUAGE EmptyDataDecls #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeOperators #-}
 module Example where
 
@@ -18,9 +19,14 @@ import Database.HDBC.Sqlite3 (Connection, connectSqlite3)
 import Database.HDBC (commit)
 import Data.Record.Label
 
+import Generics.Regular.Views
+import Generics.Regular.Formlets
+import qualified Text.XHtml.Strict as X
+import qualified Text.XHtml.Strict.Formlets as F
+
 
 data UserView = UserView {name_ :: String, age_ :: Int} deriving Show
-data PostView = PostView {title_ :: String, body_ :: Textarea, author_ :: BelongsTo User} deriving Show
+data PostView = PostView {title_ :: String, body_ :: Textarea} deriving Show
 
 data User = User {name :: String, password :: Password, age :: Int} deriving Show
 data Post = Post {title :: String, body :: String, author :: BelongsTo User} deriving Show
@@ -37,6 +43,10 @@ type instance PF PostView = PFPostView
 $(mkLabels [''Post])
 $(mkLabels [''User])
 
+mainHandler :: ServerPartT IO Response
+mainHandler =   dir "user" (crudHandler (undefined :: TW User) userConfig db)
+        `mplus` dir "post" (crudHandler (undefined :: TW Post) postConfig db)
+
 userView :: User :-> UserView
 userView = Wrap $ UserView <$> name_ =&= lName 
                            <*> age_  =&= lAge
@@ -46,15 +56,15 @@ userView = Wrap $ UserView <$> name_ =&= lName
 postView :: Post :-> PostView
 postView = Wrap $ PostView <$> title_  =&= lTitle 
                            <*> (Textarea <$> ((unTextarea . body_) =&= lBody))
-                           <*> author_ =&= lAuthor
 
-userConfig = defaultConfig {convertView = userView, convertEdit = userView}
-postConfig = defaultConfig {convertView = postView, convertEdit = postView}
+userCreate = Right (return $ User "hi" (Password "defaultPass") 24, userView)
+postCreate = Right (return $ Post "hi" "" BTNotFetched, postView)
+userConfig = defaultConfig {convertView = userView, convertEdit = userView, convertCreate = userCreate}
+postConfig = defaultConfig {convertEdit = postView, convertCreate = postCreate}
 
-
-mainHandler :: ServerPartT IO Response
-mainHandler =   dir "user" (crudHandler (undefined :: TW User) userConfig db)
-        `mplus` dir "post" (crudHandler (undefined :: TW Post) postConfig db)
+-- instances
+instance Html    (BelongsTo User) where html = const X.noHtml
+--instance Formlet (BelongsTo User) where formlet = pure 
 
 -- DB stuff
 db d = liftIO $ do conn <- connectSqlite3 "happstack.sqlite3"

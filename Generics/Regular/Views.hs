@@ -88,33 +88,3 @@ gtableRow x = gtablef gtableRow (from x)
 
 gtable :: (Regular a, GTable (PF a)) => [a] -> X.Html
 gtable xs = X.table << map gtableRow xs
-
--- JSON stuff
-
---class Json a where
---  json :: a -> J.JSValue
---
-----instance Html Int    where html = X.toHtml . show
-----instance Html String where html = X.toHtml 
---
---class GJSon f where
---  gjsonf :: (a -> J.JSValue) -> f a -> J.JSValue
---
---instance GJson I where
---  gjsonf f (I r) = f r
---
---instance (Constructor c, GJson f) => GJson (C c f) where
---  gjsonf f cx@(C x) = gjsonf f x
---
---instance Json a => GJson (K a) where
---  gjsonf _ (K x) = json x
---
---instance (GJson f, GJson g) => GJson (f :*: g) where
---  gjsonf f (x :*: y) = let gjsonf f x +++ X.br +++ gjsonf f y
---
---instance (Selector s, GJson f) => GJson (S s f) where
---  gjsonf f s@(S x) = X.label << ((capitalize $ selName s) ++ ": ") +++ gjsonf f x
---
---gjson :: (Regular a, GJson (PF a)) => a -> X.Html
---gjson x = gjsonf gjson (from x)
---

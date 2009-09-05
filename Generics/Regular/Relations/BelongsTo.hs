@@ -11,10 +11,8 @@ import Generics.Regular.ModelName
 import Generics.Regular.Database.Values
 import Generics.Regular.Database.Parse
 import Generics.Regular.Views
-import Generics.Regular.Formlets
 import qualified Text.XHtml.Strict as X
 import qualified Generics.Regular.Database.Columns as C
-import qualified Text.XHtml.Strict.Formlets as F
 
 data BelongsTo a = BTNotFetched | BTId Int | BTFetched (Int, a)
  deriving (Show, Read)
@@ -27,12 +25,6 @@ instance ParseSql (BelongsTo a) where
 
 instance C.Columns (BelongsTo a) where columns _ l  = [l ++ "_id"]
 instance Values    (BelongsTo a) where values = toInt
-
-instance Html (BelongsTo a) where
-  html = const X.noHtml
-
-instance Formlet (BelongsTo a) where
-  formlet _ = pure BTNotFetched
 
 -- A bit hacky
 toInt BTNotFetched      = [toSql ""]

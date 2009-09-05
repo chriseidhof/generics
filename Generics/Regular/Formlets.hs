@@ -13,17 +13,17 @@ import Text.Formlets (check)
 import Generics.Regular
 import Generics.Regular.Extras
 
-type XFormlet a = F.XHtmlFormlet a
+type XFormlet m a = F.XHtmlFormlet m a
 
-class    Formlet a      where formlet :: XFormlet a
+class    Formlet a      where formlet :: (Functor m, Applicative m, Monad m) => XFormlet m a
 instance Formlet Int    where formlet x = fromIntegral <$> F.inputInteger (toInteger <$> x)
 instance Formlet String where formlet = F.input
 
 
 class GFormlet f where
-  gformf :: XFormlet a -> XFormlet (f a)
+  gformf :: (Functor m, Applicative m, Monad m) => XFormlet m a -> XFormlet m (f a)
 
-gformlet :: (Regular a, GFormlet (PF a)) => XFormlet a
+gformlet :: (Regular a, GFormlet (PF a), Functor m, Applicative m, Monad m) => XFormlet m a
 gformlet x = to <$> (gformf gformlet (from <$> x))
 
 instance (Constructor c, GFormlet f) => GFormlet (C c f) where

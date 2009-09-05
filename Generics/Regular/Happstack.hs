@@ -8,6 +8,7 @@ module Generics.Regular.Happstack where
 import Control.Applicative
 import Control.Applicative.Error
 import Control.Applicative.State hiding (get)
+import Control.Monad.Identity
 import Text.Formlets
 import qualified Text.XHtml.Strict.Formlets as F
 import qualified Text.XHtml.Strict as X
@@ -28,17 +29,28 @@ data TW a
 
 type LiftDB = forall a . DB a -> ServerPartT IO a
 
-data Config a view edit = Config {convertView :: a :-> view, convertEdit :: a :-> edit}
-defaultConfig = Config {convertView = label id const, convertEdit = label id const}
+type BiDirectional a b = (a -> b, b -> a)
 
-toTW :: Config a b c -> TW a
+data Config a view edit table create = Config { convertView  :: a :-> view
+                                     , convertEdit  :: a :-> edit
+                                     , convertTable :: a :-> table
+                                     , convertCreate :: Either (a -> create, create -> a) (ServerPartT IO a, a :-> create)
+                                     }
+defaultConfig = Config id' id' id' (Left (id,id))
+ where id' = label id const
+
+toTW :: Config a b c d e-> TW a
 toTW = undefined
 
-toTWView :: Config a b c -> TW b
+toTWView :: Config a b c d e-> TW b
 toTWView = undefined
-
-toTWEdit :: Config a b c -> TW c
+toTWEdit :: Config a b c d e -> TW c
 toTWEdit = undefined
+
+toTWTable :: Config a b c d e -> TW d
+toTWTable = undefined
+toTWCreate :: Config a b c d e -> TW e
+toTWCreate = undefined
 
 currentPath r = let lRest = length (intercalate "/" $ rqPaths r)
                     revP  = reverse (rqUri r)
@@ -47,32 +59,35 @@ currentPath r = let lRest = length (intercalate "/" $ rqPaths r)
 
 -- generic CRUD
 
-crudHandler :: (Regular a, Regular view, Regular edit
-               ,GHtml (PF a), GFormlet (PF a), GTable (PF a), GValues (PF a), GColumns (PF a), GModelName (PF a), GParse (PF a) 
-               ,GHtml (PF view), GFormlet (PF edit), GTable (PF view), GModelName (PF view)
+crudHandler :: (Regular a, Regular view, Regular edit, Regular table, Regular create
+               , GValues (PF a), GColumns (PF a), GModelName (PF a), GParse (PF a) 
+               ,GHtml (PF view), GFormlet (PF edit), GFormlet (PF create), GTable (PF table), GModelName (PF view)
                ,Show a, Show view
                ) 
-            => TW a -> Config a view edit -> LiftDB -> ServerPartT IO Response
+            => TW a -> Config a view edit table create -> LiftDB -> ServerPartT IO Response
 crudHandler tw cf db = askRq >>= \r ->
   let cPath = currentPath r in
-            (dir "create" $ create tw db)
+            (dir "create" $ handleCreate cf db)
             `mplus` (dir "view" $ path (handleRead cf db))
             `mplus` (dir "edit" $ path (handleEdit cf db))
-            `mplus` (handleList tw cPath db)
+            `mplus` (handleList cf cPath db)
 
 
 -- CRUD things
 --
-handleList :: (Regular a, GTable (PF a), GValues (PF a), GColumns (PF a), GModelName (PF a), GParse (PF a), Show a) 
-           => TW a -> String -> LiftDB -> ServerPartT IO Response
-handleList tw path db = do x <- db $ findAll (unTw tw) []
-                           okHtml $   gtable (map snd x)
+handleList :: (Regular a, Regular table, GTable (PF table), GValues (PF a), GColumns (PF a), GModelName (PF a), GParse (PF a), Show a) 
+           => Config a v e table c -> String -> LiftDB -> ServerPartT IO Response
+handleList cf path db = do x <- db $ findAll (unTw $ toTW cf) []
+                           okHtml $   gtable (map (get (unWrap $ convertTable cf) . snd) x)
                                  +++ (X.hotlink (path ++ "create") << "Add item")
             where unTw = undefined :: TW a -> a
 
-handleRead :: (Regular a, GHtml (PF a), GValues (PF a), GColumns (PF a), GModelName (PF a), GParse (PF a), Show a,
-               Regular view, GHtml (PF view), GModelName (PF view), Show view) 
-           => Config a view edit -> LiftDB -> String -> ServerPartT IO Response
+handleRead :: (Regular a, Regular view, 
+               Show a, Show view,
+               GHtml (PF view), GModelName (PF view),
+               GValues (PF a), GColumns (PF a), GModelName (PF a), GParse (PF a)
+               ) 
+           => Config a view edit table create -> LiftDB -> String -> ServerPartT IO Response
 handleRead cf db (xs) = do liftIO $ print xs
                            x <- findDB (toTW cf) db (read xs)
                            okHtml $ maybe X.noHtml (ghtml . get (unWrap $ convertView cf)) x
@@ -84,7 +99,7 @@ findDB tw db i = do x <- db $ find (unTw tw) i
             where unTw = undefined :: TW a -> a
 
 handleEdit :: (Regular a, Regular edit, GFormlet (PF edit), GValues (PF a), GColumns (PF a), GModelName (PF a), GParse (PF a), Show a) 
-       => Config a view edit -> LiftDB -> String -> ServerPartT IO Response
+       => Config a view edit table create -> LiftDB -> String -> ServerPartT IO Response
 handleEdit cf db xs = do let i = read xs
                          elem <- findDB (toTW cf) db i
                          let proj = fmap (get (unWrap $ convertEdit cf)) elem
@@ -92,25 +107,32 @@ handleEdit cf db xs = do let i = read xs
  where fromJust (Just x) = x -- todo
 
 editDB :: (Regular a, GValues (PF a), GColumns (PF a), GModelName (PF a), Show a) 
-       => Int -> LiftDB -> Config a view edit -> a -> edit -> ServerPartT IO Response
+       => Int -> LiftDB -> Config a view edit table create -> a -> edit -> ServerPartT IO Response
 editDB i db cfg src new = do let x = set (unWrap $ convertEdit cfg) new src
                              db (update x i)
                              okHtml "Item updated."
 
-create :: (Regular a, GFormlet (PF a), GValues (PF a), GColumns (PF a), GModelName (PF a), Show a) 
-       => TW a -> LiftDB -> ServerPartT IO Response
-create tw db = withForm (mkForm tw Nothing) showErrorsInline (createDb db)
+handleCreate :: (Regular a, Regular create
+               , GFormlet (PF create), GValues (PF a), GColumns (PF a), GModelName (PF a), Show a) 
+       => Config a view edit table create -> LiftDB -> ServerPartT IO Response
+handleCreate cf db = withForm (mkForm (toTWCreate cf) Nothing) showErrorsInline (createDb db cf)
 
-createDb db x = do ix <- db $ new x
-                   okHtml $ show ix ++ " is successfully registered"
+createDb :: (Regular a, GValues (PF a), GColumns (PF a), GModelName (PF a), Show a) 
+       => LiftDB -> Config a view edit table create -> create -> ServerPartT IO Response
+createDb db cfg x' = do f <- case convertCreate cfg of
+                          Left (_,x) -> return x
+                          Right (d,(Wrap c)) -> do defVal <- d
+                                                   return $ \x -> set c x defVal
+                        ix <- db $ new (f x')
+                        okHtml $ show ix ++ " is successfully registered"
 
 mkForm :: (Regular a, GFormlet (PF a)) => TW a -> XFormlet a
 mkForm tw = gformlet
 
 
 -- Happstack specific stuff
-type XFormlet a = F.XHtmlFormlet a
-type XForm a = F.XHtmlForm a
+type XFormlet a = F.XHtmlFormlet (ServerPartT IO) a
+type XForm a = F.XHtmlForm (ServerPartT IO) a
 
 htmlPage :: (X.HTML a) => a -> X.Html
 htmlPage content = (X.header << (X.thetitle << "Testing forms"))
@@ -129,7 +151,8 @@ withForm frm handleErrors handleOk = msum
    handleOk' d = do
      let (extractor, html, _) = runFormState d frm
      let v = extractor  
-     case v of
+     v' <- v
+     case v' of
        Failure faults -> do 
          f <- createForm d frm
          handleErrors f faults
@@ -143,4 +166,5 @@ showErrorsInline renderedForm errors =
 createForm :: Env -> XForm a -> ServerPartT IO X.Html
 createForm env frm = do
  let (extractor, xml, endState) = runFormState env frm
- return $ X.form X.! [X.method "POST"] << (xml +++ X.br +++ X.submit "submit" "Submit")
+ xml' <- xml
+ return $ X.form X.! [X.method "POST"] << (xml' +++ X.br +++ X.submit "submit" "Submit")

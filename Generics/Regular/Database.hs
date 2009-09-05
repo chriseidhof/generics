@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Generics.Regular.Database (
-  runDB, new, find, update, findAll, DB,
+  runDB, new, find, update, findAll, createTable, DB,
   module Generics.Regular.Database.Columns,
   module Generics.Regular.Database.Values,
   module Generics.Regular.Database.Parse
@@ -47,8 +47,6 @@ update x i = let v = gvalues x
 
 find :: (Regular a, GParse (PF a), GColumns (PF a), GModelName (PF a), Show a) => a -> Int -> DB (Maybe a)
 find u i = do let q = findQuery (tableName $ from u) (gtocolumns u)
-              restmp <- (quickQueryS q [toSql i])
-              liftIO (print restmp)
               res <- map parse <$> (quickQueryS q [toSql i])
               case res of
                         []  -> return Nothing
@@ -63,6 +61,14 @@ findAll u w = do let q  = findAllQuery (tableName $ from u) ("id" : (gtocolumns 
           parse' = do Just i <- parseUsingRead
                       x <- gparse
                       return $ fmap (\v -> (i,v)) x
+
+createTable :: (Regular a, GColumns (PF a), GModelName (PF a), Show a) => a -> DB ()
+createTable u = do let q = createTableQuery (tableName $ from u) (gtocolumns u)
+                   quickQueryS q []
+                   return ()
+
+
+createTableQuery tableName columns = "CREATE TABLE " ++ tableName ++ " ( id integer primary key, " ++  (intercalate ", " columns) ++ " )"
 
 tableName x = (map toLower $ gmodelName x) ++ "s"
 
