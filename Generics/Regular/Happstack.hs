@@ -37,9 +37,13 @@ data Config a view edit table create = Config { convertView  :: a :-> view
                                               , convertTable :: a :-> table
                                               , convertCreate :: Either (a -> create, create -> a) (SP a, a :-> create)
                                               , afterFind :: Int -> a -> SP a
+                                              , template :: (X.HTML html) => html -> X.Html
+
                                               }
-defaultConfig = Config id' id' id' (Left (id,id)) (const return)
+defaultConfig = Config id' id' id' (Left (id,id)) (const return) template'
  where id' = label id const
+       template' content = (X.header << (X.thetitle << "")) +++ (X.body << content)
+
 
 toTW :: Config a b c d e-> TW a
 toTW = undefined
@@ -48,7 +52,6 @@ toTWView :: Config a b c d e-> TW b
 toTWView = undefined
 toTWEdit :: Config a b c d e -> TW c
 toTWEdit = undefined
-
 toTWTable :: Config a b c d e -> TW d
 toTWTable = undefined
 toTWCreate :: Config a b c d e -> TW e
@@ -80,7 +83,7 @@ crudHandler tw cf db = askRq >>= \r ->
 handleList :: (Regular a, Regular table, GTable (PF table), GValues (PF a), GColumns (PF a), GModelName (PF a), GParse (PF a), Show a) 
            => Config a v e table c -> String -> LiftDB -> ServerPartT IO Response
 handleList cf path db = do x <- db $ findAll (unTw $ toTW cf) []
-                           okHtml $   gtable (map (get (unWrap $ convertTable cf) . snd) x)
+                           okHtml cf $   gtable (map (get (unWrap $ convertTable cf) . snd) x)
                                  +++ (X.hotlink (path ++ "create") << "Add item")
             where unTw = undefined :: TW a -> a
 
@@ -92,7 +95,7 @@ handleRead :: (Regular a, Regular view,
            => Config a view edit table create -> LiftDB -> String -> ServerPartT IO Response
 handleRead cf db (xs) = do liftIO $ print xs
                            x <- findDB cf db (read xs)
-                           okHtml $ maybe X.noHtml (ghtml . get (unWrap $ convertView cf)) x
+                           okHtml cf $ maybe X.noHtml (ghtml . get (unWrap $ convertView cf)) x
 
 findDB :: (Regular a, GValues (PF a), GColumns (PF a), GModelName (PF a), GParse (PF a), Show a) 
        => Config a v e t c -> LiftDB -> Int -> SP (Maybe a)
@@ -107,19 +110,19 @@ handleEdit :: (Regular a, Regular edit, GFormlet (PF edit), GValues (PF a), GCol
 handleEdit cf db xs = do let i = read xs
                          elem <- findDB cf db i
                          let proj = fmap (get (unWrap $ convertEdit cf)) elem
-                         withForm (mkForm (toTWEdit cf) proj) showErrorsInline (editDB i db cf (fromJust $ elem))
+                         withForm cf (mkForm (toTWEdit cf) proj) (showErrorsInline cf) (editDB i db cf (fromJust $ elem))
  where fromJust (Just x) = x -- todo
 
 editDB :: (Regular a, GValues (PF a), GColumns (PF a), GModelName (PF a), Show a) 
        => Int -> LiftDB -> Config a view edit table create -> a -> edit -> ServerPartT IO Response
 editDB i db cfg src new = do let x = set (unWrap $ convertEdit cfg) new src
                              db (update x i)
-                             okHtml "Item updated."
+                             okHtml cfg "Item updated."
 
 handleCreate :: (Regular a, Regular create
                , GFormlet (PF create), GValues (PF a), GColumns (PF a), GModelName (PF a), Show a) 
        => Config a view edit table create -> LiftDB -> ServerPartT IO Response
-handleCreate cf db = withForm (mkForm (toTWCreate cf) Nothing) showErrorsInline (createDb db cf)
+handleCreate cf db = withForm cf (mkForm (toTWCreate cf) Nothing) (showErrorsInline cf) (createDb db cf)
 
 createDb :: (Regular a, GValues (PF a), GColumns (PF a), GModelName (PF a), Show a) 
        => LiftDB -> Config a view edit table create -> create -> ServerPartT IO Response
@@ -128,7 +131,7 @@ createDb db cfg x' = do f <- case convertCreate cfg of
                           Right (d,(Wrap c)) -> do defVal <- d
                                                    return $ \x -> set c x defVal
                         ix <- db $ new (f x')
-                        okHtml $ show ix ++ " is successfully registered"
+                        okHtml cfg $ show ix ++ " is successfully registered"
 
 mkForm :: (Regular a, GFormlet (PF a)) => TW a -> XFormlet a
 mkForm tw = gformlet
@@ -138,16 +141,12 @@ mkForm tw = gformlet
 type XFormlet a = F.XHtmlFormlet (ServerPartT IO) a
 type XForm a = F.XHtmlForm (ServerPartT IO) a
 
-htmlPage :: (X.HTML a) => a -> X.Html
-htmlPage content = (X.header << (X.thetitle << "Testing forms"))
- +++ (X.body << content)
+okHtml :: (X.HTML html) => Config x view edit table create -> html -> ServerPartT IO Response
+okHtml config content = ok $ toResponse $ template config content
 
-okHtml :: (X.HTML a) => a -> ServerPartT IO Response
-okHtml content = ok $ toResponse $ htmlPage $ content
-
-withForm :: XForm a -> (X.Html -> [String] -> ServerPartT IO Response) -> (a -> ServerPartT IO Response) -> ServerPartT IO Response 
-withForm frm handleErrors handleOk = msum
- [ methodSP GET $ createForm [] frm >>= okHtml
+withForm :: Config x view edit table create -> XForm a -> (X.Html -> [String] -> ServerPartT IO Response) -> (a -> ServerPartT IO Response) -> ServerPartT IO Response 
+withForm cfg frm handleErrors handleOk = msum
+ [ methodSP GET $ createForm [] frm >>= okHtml cfg
  , withDataFn lookPairs $ \d ->
      methodSP POST $ handleOk' $ simple d
  ]
@@ -163,9 +162,9 @@ withForm frm handleErrors handleOk = msum
        Success s      -> handleOk s
    simple d = map (\(k,v) -> (k, Left v)) d
 
-showErrorsInline :: X.Html -> [String] -> ServerPartT IO Response
-showErrorsInline renderedForm errors =
- okHtml $ X.toHtml (show errors) +++ renderedForm
+showErrorsInline :: Config x view edit table create -> X.Html -> [String] -> ServerPartT IO Response
+showErrorsInline cfg renderedForm errors =
+ okHtml cfg $ X.toHtml (show errors) +++ renderedForm
 
 createForm :: Env -> XForm a -> ServerPartT IO X.Html
 createForm env frm = do

@@ -15,16 +15,15 @@ import Generics.Regular.Extras
 
 type XFormlet m a = F.XHtmlFormlet m a
 
-class    Formlet a      where formlet :: (Functor m, Applicative m, Monad m) => XFormlet m a
-instance Formlet Int    where formlet x = fromIntegral <$> F.inputInteger (toInteger <$> x)
-instance Formlet String where formlet = F.input
-
-
-class GFormlet f where
-  gformf :: (Functor m, Applicative m, Monad m) => XFormlet m a -> XFormlet m (f a)
+class    Formlet a      where  formlet :: (Functor m, Applicative m, Monad m) => XFormlet m a
+instance Formlet Int    where  formlet x = fromIntegral <$> F.inputInteger (toInteger <$> x)
+instance Formlet String where  formlet = F.input
 
 gformlet :: (Regular a, GFormlet (PF a), Functor m, Applicative m, Monad m) => XFormlet m a
 gformlet x = to <$> (gformf gformlet (from <$> x))
+
+class GFormlet f where
+  gformf :: (Functor m, Applicative m, Monad m) => XFormlet m a -> XFormlet m (f a)
 
 instance (Constructor c, GFormlet f) => GFormlet (C c f) where
   gformf f x = C <$> (gformf f $ unC <$> x)
