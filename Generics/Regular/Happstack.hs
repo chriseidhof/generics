@@ -44,7 +44,6 @@ defaultConfig = Config id' id' id' (Left (id,id)) (const return) template'
  where id' = label id const
        template' content = (X.header << (X.thetitle << "")) +++ (X.body << content)
 
-
 toTW :: Config a b c d e-> TW a
 toTW = undefined
 
@@ -66,7 +65,7 @@ currentPath r = let lRest = length (intercalate "/" $ rqPaths r)
 
 crudHandler :: (Regular a, Regular view, Regular edit, Regular table, Regular create
                , GValues (PF a), GColumns (PF a), GModelName (PF a), GParse (PF a) 
-               ,GHtml (PF view), GFormlet (PF edit), GFormlet (PF create), GTable (PF table), GModelName (PF view)
+               , GHtml (PF view), GFormlet (PF edit), GFormlet (PF create), GTable (PF table), GModelName (PF view)
                ,Show a, Show view
                ) 
             => TW a -> Config a view edit table create -> LiftDB -> ServerPartT IO Response

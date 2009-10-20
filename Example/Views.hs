@@ -22,8 +22,8 @@ userView = Label $ UserView <$> name_ `for` lName
 
 -- Post views
 data PostView = PostView {title_ :: String, body_ :: Textarea} deriving Show
--- $(deriveAll ''PostView "PFPostView")
--- type instance PF PostView = PFPostView
+$(deriveAll ''PostView "PFPostView")
+type instance PF PostView = PFPostView
 postView :: Post :-> PostView
 postView = Label $ PostView <$> title_  `for` lTitle 
                             <*> (Textarea <$> ((unTextarea . body_) `for` lBody))

@@ -12,6 +12,7 @@ import Generics.Regular.Formlets
 import Generics.Regular.Happstack
 import Generics.Regular.Views
 import Generics.Regular.WebTypes
+import Generics.Regular.Relations
 import Happstack.Server
 import qualified Text.XHtml.Strict as X
 import qualified Text.XHtml.Strict.Formlets as F
@@ -22,15 +23,15 @@ import Example.Views
 
 mainHandler :: ServerPartT IO Response
 mainHandler =   dir "user" (crudHandler (undefined :: TW User) userConfig db)
-  --      `mplus` dir "post" (crudHandler (undefined :: TW Post) postConfig db)
+        `mplus` dir "post" (crudHandler (undefined :: TW Post) postConfig db)
 
 userCreate = Right (return $ User "hi" (Password "defaultPass") 24, userView)
 userConfig = defaultConfig {convertView = userView, convertEdit = userView, convertCreate = userCreate}
---postCreate = Right (return $ Post "hi" "" BTNotFetched, postView)
---postConfig = defaultConfig {convertEdit = postView, convertCreate = postCreate}
+postCreate = Right (return $ Post "hi" "" BTNotFetched, postView)
+postConfig = defaultConfig {convertEdit = postView, convertCreate = postCreate}
 
 -- instances
---instance Html    (BelongsTo User) where html = const X.noHtml
+instance Html    (BelongsTo User) where html = const X.noHtml
 --instance Formlet (BelongsTo User) where formlet = pure 
 
 -- DB stuff
