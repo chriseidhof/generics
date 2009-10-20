@@ -83,7 +83,7 @@ crudHandler tw cf db = askRq >>= \r ->
 handleList :: (Regular a, Regular table, GTable (PF table), GValues (PF a), GColumns (PF a), GModelName (PF a), GParse (PF a), Show a) 
            => Config a v e table c -> String -> LiftDB -> ServerPartT IO Response
 handleList cf path db = do x <- db $ findAll (unTw $ toTW cf) []
-                           okHtml cf $   gtable (map (get (unWrap $ convertTable cf) . snd) x)
+                           okHtml cf $   gtable (map (get (convertTable cf) . snd) x)
                                  +++ (X.hotlink (path ++ "create") << "Add item")
             where unTw = undefined :: TW a -> a
 
@@ -95,7 +95,7 @@ handleRead :: (Regular a, Regular view,
            => Config a view edit table create -> LiftDB -> String -> ServerPartT IO Response
 handleRead cf db (xs) = do liftIO $ print xs
                            x <- findDB cf db (read xs)
-                           okHtml cf $ maybe X.noHtml (ghtml . get (unWrap $ convertView cf)) x
+                           okHtml cf $ maybe X.noHtml (ghtml . get (convertView cf)) x
 
 findDB :: (Regular a, GValues (PF a), GColumns (PF a), GModelName (PF a), GParse (PF a), Show a) 
        => Config a v e t c -> LiftDB -> Int -> SP (Maybe a)
@@ -109,13 +109,13 @@ handleEdit :: (Regular a, Regular edit, GFormlet (PF edit), GValues (PF a), GCol
        => Config a view edit table create -> LiftDB -> String -> ServerPartT IO Response
 handleEdit cf db xs = do let i = read xs
                          elem <- findDB cf db i
-                         let proj = fmap (get (unWrap $ convertEdit cf)) elem
+                         let proj = fmap (get (convertEdit cf)) elem
                          withForm cf (mkForm (toTWEdit cf) proj) (showErrorsInline cf) (editDB i db cf (fromJust $ elem))
  where fromJust (Just x) = x -- todo
 
 editDB :: (Regular a, GValues (PF a), GColumns (PF a), GModelName (PF a), Show a) 
        => Int -> LiftDB -> Config a view edit table create -> a -> edit -> ServerPartT IO Response
-editDB i db cfg src new = do let x = set (unWrap $ convertEdit cfg) new src
+editDB i db cfg src new = do let x = set (convertEdit cfg) new src
                              db (update x i)
                              okHtml cfg "Item updated."
 
@@ -128,8 +128,8 @@ createDb :: (Regular a, GValues (PF a), GColumns (PF a), GModelName (PF a), Show
        => LiftDB -> Config a view edit table create -> create -> ServerPartT IO Response
 createDb db cfg x' = do f <- case convertCreate cfg of
                           Left (_,x) -> return x
-                          Right (d,(Wrap c)) -> do defVal <- d
-                                                   return $ \x -> set c x defVal
+                          Right (d,c) -> do defVal <- d
+                                            return $ \x -> set c x defVal
                         ix <- db $ new (f x')
                         okHtml cfg $ show ix ++ " is successfully registered"
 
