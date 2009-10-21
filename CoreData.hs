@@ -30,7 +30,7 @@ import CoreData.Sqlite
 
 -- Example
 --
-type Domain f = (((), f User), f Post)
+type Domain f = (f Post, (f User, ()))
 data User = User {name :: String, password :: String, age :: Int, posts :: Many Post} deriving (Show, Typeable)
 data Post = Post {title :: String, body :: String, author :: One User} deriving (Show, Typeable)
 
@@ -47,8 +47,11 @@ instance Index TypeCache Post (Domain TypeCache) where index = Zero
 
 rPosts = NamedLabel lPosts "author_id" -- TODO: should be template haskell.
 
+allTypes :: IndexList (Domain TypeCache)
+allTypes = Cons (tUser) (Cons tPost Nil)
 tUser = Suc Zero 
 tPost = Zero 
+
 
 db d = liftIO $ do conn <- connectSqlite3 "coredata.sqlite3"
                    x <- runDB conn d
@@ -61,7 +64,15 @@ example :: CoreData DB' (Domain TypeCache) ()
 example = do p     <- fetch tPost 2
              a     <- p ? lAuthor
              posts <- a ? rPosts
-             liftIO $ print (count posts)
+             nm    <- a <@> lName
+             set a lName "bla"
+             liftIO $ print (nm, count posts)
 
 runExample :: IO ()
-runExample = db $ unDB' $ runCoreData example tUser
+runExample = do st <- db $ unDB' $ runCoreData example tUser
+                print st
+                return ()
+
+saveExample = do st <- db $ unDB' $ saveCoreData example tUser allTypes
+                 print st
+                 return ()

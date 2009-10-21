@@ -6,6 +6,8 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE GADTs #-}
 module CoreData.Core where
 
 import Control.Applicative
@@ -31,10 +33,9 @@ import qualified Data.Set            as S
 
 class (Monad (p fam)) => Persist p fam where
   pFetch :: Regular a => TRef f a fam -> Int -> p fam (Maybe a)
+  pSave  :: Regular a => TRef f a fam -> Int -> a -> p fam ()
   pFetchHasMany :: (Regular a, Regular b) => TRef TypeCache b fam -> NamedLabel a (Many b) -> Int -> p fam [(Int, b)]
 
-class Index f typ fam where
-  index :: TRef f typ fam
  
 data NamedLabel a b = NamedLabel {rel :: a :-> b, key :: String}
 type Type a    = a
@@ -44,30 +45,57 @@ data Ident = UID UID | Fresh Int deriving (Ord, Show, Eq)
 data State fam = State {tCache :: fam, freshId :: Int} deriving Show
 data TypeCache a = TypeCache {store :: M.Map Ident a, tainted :: S.Set Ident} deriving Show
 
-data One a = One UID deriving (Show, Read)
+data One a = One {unOne :: UID} deriving (Show, Read)
 data Many   a = HM    deriving (Show, Read)
  
 type CoreData p fam a = Persist p fam => ST.StateT (State fam) (p fam) a
 newtype Ref f fam a = Ref {unRef :: (TRef f a fam, Ident)} deriving Show
+type CoreDataState a = State a
 
 emptyState :: TRef TypeCache a env -> env
-emptyState Zero    = (error "Empty state: wrong index.", TypeCache M.empty S.empty)
-emptyState (Suc x) = (emptyState x, TypeCache M.empty S.empty)
- 
+emptyState Zero    = (TypeCache M.empty S.empty, undefined)
+emptyState (Suc x) = (TypeCache M.empty S.empty, emptyState x)
 
 $(mkLabels [''State])
 $(mkLabels [''TypeCache])
  
-runCoreData :: (Persist p fam) => CoreData p fam a -> TRef TypeCache b fam -> p fam ()
+runCoreData :: (Persist p fam) => CoreData p fam a -> TRef TypeCache b fam -> p fam (CoreDataState fam)
 runCoreData comp max = do (a, s) <- ST.runStateT comp (State (emptyState max) 0)
-                          return ()
--- 
--- saveCoreData :: (MonadIO (p fam), Show a, Show (State fam)
---                 ,Persist p fam) => CoreData p fam a -> p fam ()
--- saveCoreData comp = do (a, s) <- ST.runStateT comp (State M.empty M.empty 0)
---                        todo "saveCoreData"
---                        return ()
--- 
+                          return s
+
+saveCoreData :: (Persist p fam) => CoreData p fam a -> TRef TypeCache b fam -> (IndexList fam) -> p fam (CoreDataState fam)
+saveCoreData comp max list = do (a, s) <- ST.runStateT comp (State (emptyState max) 0)
+                                mapIndexList (saveTainted $ tCache s) list
+                                return s
+--saveCoreData comp max = do (a, s) <- ST.runStateT comp (State (emptyState max) 0)
+--                           --list <- return $ makeIndexList (tCache s) max
+--                           list <- undefined
+--                           --mapMIndexList saveTainted list  -- (tCache s)
+--                           return s
+
+--makeIndexList :: fam -> TRef TypeCache b fam -> IndexList TypeCache fam
+--makeIndexList = undefined
+--makeIndexList cache (i@Zero)    = Cons i (lookupTRef i cache) Nil
+--makeIndexList (val,cache) (i@(Suc x)) = Cons i val (lift' $ makeIndexList cache x)
+
+--lift' :: IndexList a fam -> IndexList a (x, fam)
+--lift' = undefined
+
+saveTainted :: forall p fam a. (Persist p fam, Regular a) => fam -> TRef TypeCache a fam -> p fam ()
+saveTainted fam ix = mapM_ (saveItem ix) $ S.toList $ tainted $ lookupTRef ix fam
+ where saveItem :: Regular a => TRef TypeCache a fam -> Ident -> p fam ()
+       saveItem ix (UID uid) = pSave ix uid (val $ UID uid)
+       val r = case M.lookup r (store $ lookupTRef ix fam) of
+                    Nothing -> error "Error: saving non-existing tainted object"
+                    Just x  -> x
+--saveTainted ix x = mapM_ (saveItem ix) (S.toList $ tainted x)
+--  where saveItem ix r@(UID uid) = pSave ix uid (val r)
+-- mapM_ (saveItem index)  (S.toList $ tainted x)
+--   where saveItem :: (Persist p fam) => TRef f a fam -> Ident -> p fam ()
+--         saveItem ix (UID uid)   = pSave ix uid undefined
+--         saveItem ix (Fresh uid) = todo "Saving new items"
+--         lookupVal = undefined
+
 fetch :: (Persist p fam, Regular a, GModelName (PF a)) => TRef TypeCache a fam -> UID -> CoreData p fam (Ref TypeCache fam a)
 fetch typeWitness uid = return $ Ref (typeWitness, UID uid)
  
@@ -153,3 +181,18 @@ count = length . unRefList
 
 objectAtIndex :: RefList f fam a -> Int -> Maybe (Ref f fam a)
 objectAtIndex l ix = Just (unRefList l !! ix)
+
+-- Lists of types.
+
+data IndexList fam where
+  Nil  :: IndexList fam
+  Cons :: Regular a => TRef TypeCache a fam -> IndexList fam -> IndexList fam
+
+
+mapIndexList :: (Persist p fam) => (forall a . Regular a => TRef TypeCache a fam -> p fam ()) -> IndexList fam -> p fam ()
+mapIndexList f Nil = return ()
+mapIndexList f (Cons x xs) = do f x
+                                mapIndexList f xs
+--mapMIndexList :: forall p f fam . Monad (p fam) => (forall a . Regular a => TRef f a fam -> f a -> p fam ()) -> IndexList f fam -> p fam ()
+--mapMIndexList f Nil         = return ()
+--mapMIndexList f (Cons ix x xs) = f ix x >> mapMIndexList f xs
