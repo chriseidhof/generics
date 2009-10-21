@@ -6,6 +6,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 module CoreData where
 
@@ -21,13 +22,14 @@ import Database.HDBC.Sqlite3 (Connection, connectSqlite3)
 import qualified Data.Map as M
 import qualified Control.Monad.State as S
 import CoreData.Core
+import CoreData.TRef
 
 -- Types
 
 
 -- Example
 --
-type Domain = (((), User), Post)
+type Domain f = (((), f User), f Post)
 data User = User {name :: String, password :: String, age :: Int, posts :: HasMany Post} deriving (Show, Typeable)
 data Post = Post {title :: String, body :: String, author :: BelongsTo User} deriving (Show, Typeable)
 
@@ -39,8 +41,8 @@ $(deriveAll ''Post "PFPost")
 type instance PF Post = PFPost
 $(mkLabels [''Post])
 
-instance Index User Domain where index = Suc Zero
-instance Index Post Domain where index = Zero
+instance Index TypeCache User (Domain TypeCache) where index = Suc Zero
+instance Index TypeCache Post (Domain TypeCache) where index = Zero
 
 rPosts = NamedLabel lPosts "author_id" -- TODO: should be template haskell.
 
@@ -71,7 +73,7 @@ instance (Show a, Regular a,
          GModelName (PF a), 
          GColumns (PF a), 
          GParse (PF a),
-         Persist DB' env) => Persist DB' (env, a) where
+         Persist DB' env) => Persist DB' (env, f a) where
   pFetch x@Zero id = DB' $ find (tRefType x) id
   pFetch (Suc y) id = DB' $ unDB' $ pFetch y id
   --pFetchHasMany :: (Regular a, Regular b) => Int -> TRef fam b -> NamedLabel a (HasMany b) -> p fam (RefList fam b)
@@ -79,11 +81,11 @@ instance (Show a, Regular a,
   pFetchHasMany ix  (Suc x) label = DB' $ unDB' $ pFetchHasMany ix x label
 
 
-example :: CoreData DB' Domain ()
-example = do p  <- fetch tPost 2
-             a  <- p <@> lAuthor
-             a' <- create tUser (User "chris" "test" 24 HMNotFetched)
-             set a lName "pietje"
+example :: CoreData DB' (Domain TypeCache) ()
+example = do p     <- fetch tPost 2
+             a     <- p ? lAuthor
+             posts <- a ? rPosts
+             liftIO $ print (count posts)
 
 runExample :: IO ()
-runExample = db $ unDB' $ runCoreData example
+runExample = db $ unDB' $ runCoreData example tUser
