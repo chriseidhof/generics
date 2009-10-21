@@ -9,7 +9,9 @@
 {-# LANGUAGE TemplateHaskell #-}
 module CoreData.Core where
 
-import Data.Record.Label
+import Control.Applicative
+import Data.Record.Label hiding (set)
+import qualified Data.Record.Label as L
 import Generics.Regular
 import Generics.Regular.Database
 import Generics.Regular.Relations
@@ -20,7 +22,7 @@ import Database.HDBC (commit)
 import Database.HDBC.Sqlite3 (Connection, connectSqlite3)
 import qualified Data.Map as M
 import qualified Data.Set as S
-import qualified Control.Monad.State as S
+import qualified Control.Monad.State as ST
 
 -- Types
 
@@ -37,7 +39,7 @@ tRefToInt Zero = 0
 tRefToInt (Suc x) = 1 + (tRefToInt x)
 
 tRefType :: TRef a env -> a
-tRefType = undefined
+tRefType = error "trying to evaluate a tRefType"
 
 class (Monad (p fam)) => Persist (p :: * -> * -> *) fam where
   pFetch :: Regular a => TRef a fam -> Int -> p fam (Maybe a)
@@ -51,35 +53,45 @@ data NamedLabel a b = NamedLabel {rel :: a :-> b, key :: String}
 type Type a    = a
 type TypeName  = String
 type UID       = Int
-type Store fam = M.Map Int (M.Map UID Dynamic)
-type Tainted fam = M.Map Int (S.Set UID)
-data State fam = State {store :: Store fam, tainted :: Tainted fam}
+data Ident = UID UID | Fresh Int deriving (Ord, Show, Eq)
+type Store fam = M.Map Int (M.Map Ident Dynamic)
+type Tainted fam = M.Map Int (S.Set Ident)
+data State fam = State {store :: Store fam, tainted :: Tainted fam, freshId :: Int} deriving Show
 $(mkLabels [''State])
 
-type CoreData p fam a = Persist p fam => S.StateT (State fam) (p fam) a
-newtype Ref fam a = Ref {unRef :: (TRef a fam, UID)}-- deriving Show
+type CoreData p fam a = Persist p fam => ST.StateT (State fam) (p fam) a
+newtype Ref fam a = Ref {unRef :: (TRef a fam, Ident)}-- deriving Show
 
 instance Show (Ref fam a) where
   show (Ref (t, id)) = "Ref {" ++ show (tRefToInt t) ++ ", " ++ show id ++ "}"
 
-runCoreData :: Persist p fam => CoreData p fam a -> p fam ()
-runCoreData comp = do (a, s) <- S.runStateT comp (State M.empty M.empty)
+runCoreData :: (MonadIO (p fam), Show a, Show (State fam) -- debugging
+               ,Persist p fam) => CoreData p fam a -> p fam ()
+runCoreData comp = do (a, s) <- ST.runStateT comp (State M.empty M.empty 0)
+                      liftIO $ print (a, s)
                       return ()
 
-fetch :: (Persist p fam, Regular a, GModelName (PF a)) => TRef a fam -> UID -> CoreData p fam (Ref fam a)
-fetch typeWitness uid = return $ Ref (typeWitness, uid)
+saveCoreData :: (MonadIO (p fam), Show a, Show (State fam)
+                ,Persist p fam) => CoreData p fam a -> p fam ()
+saveCoreData comp = do (a, s) <- ST.runStateT comp (State M.empty M.empty 0)
+                       todo "saveCoreData"
+                       return ()
 
+fetch :: (Persist p fam, Regular a, GModelName (PF a)) => TRef a fam -> UID -> CoreData p fam (Ref fam a)
+fetch typeWitness uid = return $ Ref (typeWitness, UID uid)
+
+create :: (Persist p fam, Regular a, Typeable a, GModelName (PF a)) => TRef a fam -> a -> CoreData p fam (Ref fam a)
+create tRef val = do ref <- mkFreshId tRef
+                     cache ref val
+                     addTainted ref
+                     return ref
 
 (?) :: (Persist p fam, Regular a, Typeable a) => Ref fam a -> (a :-> b) -> CoreData p fam b
 ref ? prop = 
   do let (typeIndex, uid) = unRef ref
      x <- getM lStore
      case (M.lookup (tRefToInt typeIndex) x >>= M.lookup uid) of
-          Nothing -> do result <- lift $ pFetch typeIndex uid 
-                        case result of
-                          Nothing -> error "Entity not found"
-                          Just x  -> do cache ref x
-                                        return $ get prop x -- TODO: update the map
+          Nothing -> get prop <$> force ref
           Just  x -> case fromDynamic x of
                           Nothing -> error "Internal error: (?)"
                           Just x  -> return $ get prop x
@@ -87,9 +99,42 @@ ref ? prop =
 set :: (Persist p fam, Regular a, Typeable a) => Ref fam a -> (a :-> b) -> b -> CoreData p fam ()
 set ref setter newValue =  do
   let (typeIndex, uid) = unRef ref
-  tainted <- getM lTainted
-  undefined -- TODO
+      tIndex = tRefToInt typeIndex
+  addTainted ref
+  val <- force ref
+  modM lStore   $ insert' (tIndex, uid, L.set setter newValue val)
+  
+-- Internal methods.
 
+mkFreshId :: TRef a fam -> CoreData p fam (Ref fam a)
+mkFreshId tRef = do x <- getM lFreshId
+                    modM lFreshId (+1)
+                    return $ Ref (tRef, Fresh x)
+
+-- TODO: force can check whether the item's already in the cache.
+-- TODO: make sure force isn't exposed.
+force :: (Persist p fam, Regular a, Typeable a) => Ref fam a -> CoreData p fam a
+force ref@(Ref (typeIndex, Fresh x)) = do m <- getM lStore
+                                          case (M.lookup (tRefToInt typeIndex) m >>= M.lookup (Fresh x) >>= fromDynamic) of
+                                               Nothing -> error "Internal error: trying to force a fresh item that doesn't exist."
+                                               Just x  -> return x
+
+force ref@(Ref (typeIndex, UID uid)) = do 
+  result <- lift $ pFetch typeIndex uid 
+  case result of
+       Nothing -> error "Entity not found"
+       Just x  -> do cache ref x
+                     return x
+        
+  
+
+insert' (i1,i2,val) m = case M.lookup i1 m of
+                          Nothing -> M.insert i1 (M.singleton i2  (toDyn val)) m
+                          Just x  -> M.update (Just . M.insert i2 (toDyn val)) i1 m
+
+addTainted (Ref (i1,i2)) = modM lTainted $ \m -> case M.lookup (tRefToInt i1) m of
+  Nothing -> M.insert (tRefToInt i1) (S.singleton i2 ) m
+  Just x  -> M.update (Just . S.insert i2) (tRefToInt i1) m
 
 -- TODO: this can probably be optimized some more.
 cache :: (Typeable a) => Ref fam a -> a -> CoreData p fam ()
@@ -113,11 +158,15 @@ instance Relation (:->) BelongsTo Ref where
     fetch index x
 
 instance Relation NamedLabel HasMany RefList where
-  ref <@> relation = do
-    let (_, uid) = unRef ref
-    many <- lift $ pFetchHasMany uid index relation
-    return $ fromList $ map (Ref . ((,) index)) $ map fst many
+  ref <@> relation = 
+    let (_, ident) = unRef ref in
+    case ident of
+      UID uid -> do many <- lift $ pFetchHasMany uid index relation
+                    return $ fromList $ map (Ref . ((,) index) . UID) $ map fst many
+      Fresh x -> todo "HasMany not implemented yet"
 
+-- Temporary stuff
+todo x = error $ "TODO: " ++ x
 
 -- RefLists (implementation may (will) change)
 

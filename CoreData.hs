@@ -80,8 +80,9 @@ instance (Show a, Regular a,
 
 
 example :: CoreData DB' Domain ()
-example = do p  <- fetch tPost 1
+example = do p  <- fetch tPost 2
              a  <- p <@> lAuthor
+             a' <- create tUser (User "chris" "test" 24 HMNotFetched)
              set a lName "pietje"
 
 runExample :: IO ()
