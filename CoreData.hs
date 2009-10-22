@@ -61,11 +61,11 @@ db d = liftIO $ do conn <- connectSqlite3 "coredata.sqlite3"
 -- Example
 
 example :: CoreData DB' (Domain TypeCache) ()
-example = do p     <- fetch tPost 2
-             a     <- p ? lAuthor
-             posts <- a ? rPosts
-             nm    <- a <@> lName
-             set a lName "bla"
+example = do p     <- fetch tPost 2 -- fetch a reference to post with id 2
+             a     <- p ? lAuthor   -- fetch the author of the post
+             posts <- a ? rPosts    -- fetch all the posts by that author
+             nm    <- a <@> lName   -- fetch the name of the author
+             set a lName "bla"      -- update the name of the author
              liftIO $ print (nm, count posts)
 
 runExample :: IO ()

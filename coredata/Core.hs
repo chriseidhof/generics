@@ -24,10 +24,13 @@ import qualified Data.Record.Label   as L
 import qualified Data.Set            as S
 
 -- TODO
+--   * Put parameters of runCoreData, saveCoreData in State.
+--   saveItem doesn't save new values (use environment)
+--   * Save state: clean tainted values, think about type signature.
 --   * Setters for relations <@=>
---   * Save state to database
 --   * Undo/redo
 --   * Fetching with predicate
+--   * Investigate whether using multirec will help.
 
 -- Types
 
@@ -42,7 +45,7 @@ type Type a    = a
 type TypeName  = String
 type UID       = Int
 data Ident = UID UID | Fresh Int deriving (Ord, Show, Eq)
-data State fam = State {tCache :: fam, freshId :: Int} deriving Show
+data State fam = State {tCache :: fam, freshId :: Int, max :: TRef TypeCache b fam} deriving Show
 data TypeCache a = TypeCache {store :: M.Map Ident a, tainted :: S.Set Ident} deriving Show
 
 data One a = One {unOne :: UID} deriving (Show, Read)
@@ -60,13 +63,17 @@ $(mkLabels [''State])
 $(mkLabels [''TypeCache])
  
 runCoreData :: (Persist p fam) => CoreData p fam a -> TRef TypeCache b fam -> p fam (CoreDataState fam)
-runCoreData comp max = do (a, s) <- ST.runStateT comp (State (emptyState max) 0)
-                          return s
+runCoreData comp max' = do (a, s) <- ST.runStateT comp (State (emptyState max) 0 max')
+                           return s
+
+save :: (Persist p fam) => CoreDataState fam -> p fam (CoreDataState fam)
+save = undefined
 
 saveCoreData :: (Persist p fam) => CoreData p fam a -> TRef TypeCache b fam -> (IndexList fam) -> p fam (CoreDataState fam)
-saveCoreData comp max list = do (a, s) <- ST.runStateT comp (State (emptyState max) 0)
-                                mapIndexList (saveTainted $ tCache s) list
-                                return s
+saveCoreData comp max list = undefined
+--do (a, s) <- ST.runStateT comp (State (emptyState max) 0)
+--                                mapIndexList (saveTainted $ tCache s) list
+--                                return s
 --saveCoreData comp max = do (a, s) <- ST.runStateT comp (State (emptyState max) 0)
 --                           --list <- return $ makeIndexList (tCache s) max
 --                           list <- undefined
