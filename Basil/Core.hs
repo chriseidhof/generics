@@ -5,16 +5,24 @@
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE EmptyDataDecls        #-}
 {-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE Rank2Types   #-}
+{-# LANGUAGE FlexibleContexts   #-}
 
 module Basil.Core where
 
-import Generics.MultiRec.Base
+import Generics.MultiRec.Base hiding (index)
+import Control.Monad.Trans (lift)
+import Data.Record.Label hiding (set)
 import qualified Data.Map as M
+import qualified Control.Monad.State as ST
 
-data Ref     (phi :: * -> *) (ix :: *)
+data Ref     (phi :: * -> *) (ix :: *) where
+  Ref :: (phi ix) -> Ident -> Ref phi ix
 data RefList (phi :: * -> *) (ix :: *) where
   RLNil :: RefList phi ix
+
+data Ident = UID UID | Fresh Int deriving (Ord, Show, Eq)
+type UID   = Int
 
 data One  = One
 data Many = Many
@@ -63,37 +71,11 @@ type family Index ix (relation :: (* -> *) -> * -> *) :: ((* -> *) -> * -> *)
 type instance Index (RelIndex a Zero)  ((:&:) a b) = a
 type instance Index (RelIndex t (Suc x)) ((:&:) a b) = Index (RelIndex t x) b
 
-data Basil (phi :: * -> *) a  where
-  Basil :: EnumTypes phi env => (State phi env, a) -> Basil phi a
-
---data State (phi :: * -> *) env
-
 data Witnesses (phi :: * -> *) (env :: *) where
   WNil  :: Witnesses phi ()
   WCons :: El phi ix => Witnesses phi env -> Witnesses phi (ix, env)
 
-newtype Id a = Id {unId :: a}
-
-type family   State (phi :: * -> *) env :: *
-type instance State phi () = ()
-type instance State phi (x, xs) = (M.Map Int x, State phi xs)
-
-emptyState :: Witnesses phi env -> State phi env
-emptyState WNil       = ()
-emptyState (WCons xs) = (M.empty, emptyState xs)
-
-
-class EnumTypes phi env | phi -> env where 
-  allTypes :: Witnesses phi env
-
-runBasil :: forall phi env a . (EnumTypes phi env) => Basil phi a -> (State phi env, a)
-runBasil x = (emptyState (allTypes :: Witnesses phi env), undefined)
-
-find :: (El phi ix) => Int -> Basil phi (Maybe a)
-find ix = undefined
-
-new :: (El phi ix, HasRelations phi ix) => ix -> Value phi (Relations phi ix) -> Basil phi (Ref phi ix)
-new = undefined
-
-rel :: (El phi ix, HasRelations phi ix) => Ref phi ix -> relIndex -> Basil phi (Value phi (Index relIndex (Relations phi ix)))
-rel = undefined
+class (Monad (p phi), Fam phi) => Persist (p :: (* -> *) -> * -> *) (phi :: * -> *) where
+  pFetch :: phi ix -> Int -> p phi (Maybe ix)
+  -- pSave  :: Regular a => TRef f a fam -> Int -> a -> p fam ()
+  -- pFetchHasMany :: (Regular a, Regular b) => TRef TypeCache b fam -> NamedLabel a (Many b) -> Int -> p fam [(Int, b)]
