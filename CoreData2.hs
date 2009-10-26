@@ -85,89 +85,28 @@ instance Persist Logger Blog where
   pFetch tix ix = do log ix
                      return Nothing
 
-data To2 mult1 mult2 l r where
-  Relation :: Relation (mult1, mult2) l r 
-           -> Relation (mult2, mult1) r l
-           -> To2 mult1 mult2 l r
-mkRelation x y = let x1 = x y1
-                     y1 = y x1
-                 in Relation x1 y1
-
-
-data PointersToRelation phi ix where
-  NoRelation :: PointersToRelation phi ix
-  PointerL   :: PointersToRelation phi ix
-
-class Fam phi => ERModel (phi :: * -> *) env | phi -> env, env -> phi where
-  relations2 :: TList phi env
-
 instance ERModel Blog ERRelationsBlog where
-  relations2 = TCons User authorPosts $ TCons User authorComments $ TCons Post postComments TNil
+  relations = TCons Post User authorPosts $ TCons Comment User authorComments $ TCons Comment Post postComments TNil
 
-type ERRelationsBlog = ((One `To2` Many) Post User
-                        ,((One `To2` Many) Comment User
-                        ,((One `To2` Many) Comment Post
-                        ,()
-                        )))
+type ERRelationsBlog = ((One `To` Many) Post User
+                       ,((One `To` Many) Comment User
+                       ,((One `To` Many) Comment Post
+                       ,()
+                       )))
   --relationsForIndex = undefined
 
-relationsForType :: (ERModel phi xs, TEq phi) => phi x -> TList phi (FilterIfTypeEq x xs)
-relationsForType ix = filterByType ix relations2
-
--- data ERRelIndexList a items env where
---   ERILNil :: ERRelIndexList a () env
---   ERILCons :: ERRelIndex phi m1 m2 from a env -> ERRelIndexList a items env -> ERRelIndexList a (To2 m1 m2 from a , items) env
--- 
--- data ERRelIndex (phi :: * -> *) m1 m2 from a env where
---   Left2  :: phi a -> ERRelIndex phi m1 m2 from a (To2 m1 m2 from a, b)
---   Suc2   :: ERRelIndex phi m1 m2 from a env -> ERRelIndex phi m1 m2 from a (b, env)
--- 
--- 
--- lookupRel :: ERRelIndex phi m1 m2 from  a env -> env -> To2 m1 m2 from a
--- lookupRel (Left2 _) env = fst env
--- lookupRel (Suc2 x) env = lookupRel x (snd env)
--- 
--- lookupRel' :: (ERModel phi env) => ERRelIndex phi m1 m2 from a env -> To2 m1 m2 from a
--- lookupRel' ix = lookupRel ix (relations2)
---rel Zero2 = undefined
-
-
---lookup' :: nat -> ix -> env -> Index2 nat ix env
---lookup' Zero ix (a, _) = undefined
 
 --newEntity :: (Relations Blog User relations) => User -> relations -> Ref User
 --newEntity = undefined
-
---
---instance ERModel Blog where
---  relations = (authorPosts, (authorComments, (postComments, nil)))
-
---type instance Relations Blog User     =  ((Many `To` One)  Post) :&: ((Many `To` One) Comment) :&: Nil
---type instance Relations Blog Comment  =  ((One  `To` Many) User) :&: ((One  `To` Many) Post)   :&: Nil
---type instance Relations Blog Post     =  ((One  `To` Many) User) :&: ((Many `To` One) Comment) :&: Nil
 
 authorPosts    = Rel "author" One User `mkRelation` Rel "posts"    Many Post
 authorComments = Rel "author" One User `mkRelation` Rel "comments" Many Comment
 postComments   = Rel "post"   One Post `mkRelation` Rel "comments" Many Comment
 
---
-  --
-
 exampleUser    = UserC "chris" "test" 24
 examplePost    = PostC "fipo" "my first post"
 exampleComment = CommentC "a comment!"
 
---instance HasRelations Blog User where
---  relations = ((To $ snd authorPosts) :&: (To $ snd authorComments) :&: Nil)
---
---instance HasRelations Blog Comment where
---  relations = ((To $ fst authorComments) :&: (To $ fst postComments) :&: Nil)
---
---instance HasRelations Blog Post where
---  relations = ((To $ fst authorPosts) :&: (To $ snd postComments) :&: Nil)
-
---userPosts    = RZero      :: RelIndex ((Many `To` One) Post)    (Zero)
---userComments = RSuc RZero :: RelIndex ((Many `To` One) Comment) (Suc Zero)
 
 -- example flow
 --

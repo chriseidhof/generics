@@ -3,7 +3,7 @@
 {-# LANGUAGE Rank2Types   #-}
 {-# LANGUAGE TemplateHaskell   #-}
 {-# LANGUAGE TypeOperators   #-}
-module Basil.Interface (runBasil, find, new, rel, attr, Basil (), BasilState) where
+module Basil.Interface (runBasil, find, new, attr, Basil (), BasilState) where
 
 import Basil.Core
 import Basil.Cache
@@ -38,17 +38,17 @@ attr r@(Ref tix ix) at = do val <- findCache r
                                  Just x  -> return $ get at x
                                  Nothing -> error "Not found in cache."
 
-new :: (Persist p phi, El phi ix, HasRelations phi ix) 
-    => ix -> Value phi (Relations phi ix) -> Basil phi env p (Ref phi ix)
-new i rels = do let tix = proof
-                freshId <- getM freshVariable
-                modM freshVariable (+1)
-                let saveData     = mod cached (M.insert (Fresh freshId) i)
-                    addToTainted = mod tainted (S.insert (Fresh freshId))
-                modM cache (modCache (saveData . addToTainted) (index tix))
-                -- TODO :save rels
-                return (Ref tix (Fresh freshId))
+new :: (Persist p phi, El phi ix) 
+    => ix -> {- relations -> -} Basil phi env p (Ref phi ix)
+new i {- rels-} = do let tix = proof
+                     freshId <- getM freshVariable
+                     modM freshVariable (+1)
+                     let saveData     = mod cached (M.insert (Fresh freshId) i)
+                         addToTainted = mod tainted (S.insert (Fresh freshId))
+                     modM cache (modCache (saveData . addToTainted) (index tix))
+                     -- TODO :save rels
+                     return (Ref tix (Fresh freshId))
                 
 
-rel :: (Persist p phi, El phi ix, HasRelations phi ix) => Ref phi ix -> relIndex -> Basil phi env p (Value phi (Index relIndex (Relations phi ix)))
-rel = undefined
+-- rel :: (Persist p phi, El phi ix, HasRelations phi ix) => Ref phi ix -> relIndex -> Basil phi env p (Value phi (Index relIndex (Relations phi ix)))
+-- rel = undefined
