@@ -30,11 +30,9 @@ data Many = Many
 data Relation multiplicity i1 i2 where
   Rel :: String                         -- | The name
       -> mult1                          -- | The multiplicity
-      -> phi i1                         -- | The from
       -> phi i2                         -- | The to
       -> Relation (mult2, mult1) i2 i1  -- | The inverse
       -> Relation (mult1, mult2) i1 i2
-
 
 data Nil (phi :: * -> *) a where Nil :: Nil phi a
 data To mult1 mult2 (from :: *) (phi :: * -> *) to where
